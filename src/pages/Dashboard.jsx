@@ -1,5 +1,5 @@
 // src/pages/Dashboard.jsx
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import Summary from '../components/Summary'
 import BibitTable from '../components/BibitTable'
@@ -7,7 +7,8 @@ import BinanceTable from '../components/BinanceTable'
 import PhysicalTable from '../components/PhysicalTable'
 import LiquidTable from '../components/LiquidTable'
 
-const LOCKED_TYPES = new Set(['summary', 'fisik', 'kas'])
+
+const TAB_ICONS = { summary: '◈', bibit: '↗', binance: '◆', fisik: '⬡', kas: '◎', custom: '○' }
 
 const DEFAULT_TABS = [
   { label: 'Ringkasan',   type: 'summary', position: 0 },
@@ -17,43 +18,25 @@ const DEFAULT_TABS = [
   { label: 'Aset Liquid', type: 'kas',     position: 4 },
 ]
 
-const TAB_TYPES = [
-  { value: 'bibit',   label: 'BIBIT (Reksa Dana)' },
-  { value: 'binance', label: 'Binance (Crypto)' },
-  { value: 'fisik',   label: 'Aset Fisik' },
-  { value: 'kas',     label: 'Aset Liquid' },
-  { value: 'summary', label: 'Ringkasan' },
-  { value: 'custom',  label: 'Custom (Kosong)' },
-]
-
 export default function Dashboard({ session }) {
-  const [tabs, setTabs] = useState([])
+  const [tabs, setTabs]           = useState([])
   const [tabsLoaded, setTabsLoaded] = useState(false)
   const [activeTab, setActiveTab] = useState(null)
 
   const [editingTabId, setEditingTabId] = useState(null)
-  const [renameValue, setRenameValue] = useState('')
-
-  const [showAddTab, setShowAddTab] = useState(false)
-  const [newLabel, setNewLabel] = useState('')
-  const [newType, setNewType] = useState('bibit')
-  const [addingTab, setAddingTab] = useState(false)
+  const [renameValue, setRenameValue]   = useState('')
 
   const [tabMenuId, setTabMenuId] = useState(null)
   const [menuPos,   setMenuPos]   = useState(null)
 
-  const [data, setData] = useState({ bibit: [], binance: [], fisik: [], kas: [], jht: 0, target: 200000000 })
+  const [data, setData]     = useState({ bibit: [], binance: [], fisik: [], kas: [], jht: 0, target: 200000000 })
   const [loading, setLoading] = useState(true)
 
   const uid = session.user.id
-  const addDropdownRef = useRef(null)
 
   const fetchTabs = useCallback(async () => {
     const { data: rows, error } = await supabase
-      .from('tab_configs')
-      .select('*')
-      .eq('user_id', uid)
-      .order('position')
+      .from('tab_configs').select('*').eq('user_id', uid).order('position')
 
     if (error) { console.error('fetchTabs:', error); setTabsLoaded(true); return }
 
@@ -94,19 +77,6 @@ export default function Dashboard({ session }) {
 
   useEffect(() => { fetchTabs(); fetchAll() }, [fetchTabs, fetchAll])
 
-  // Close add dropdown on outside click
-  useEffect(() => {
-    if (!showAddTab) return
-    const handler = (e) => {
-      if (addDropdownRef.current && !addDropdownRef.current.contains(e.target)) {
-        setShowAddTab(false)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [showAddTab])
-
-  // Close tab menu on outside click
   useEffect(() => {
     if (!tabMenuId) return
     const handler = (e) => {
@@ -118,11 +88,10 @@ export default function Dashboard({ session }) {
     return () => document.removeEventListener('mousedown', handler)
   }, [tabMenuId])
 
+  const closeMenu = () => { setTabMenuId(null); setMenuPos(null) }
+
   const startRename = (id, label) => {
-    setEditingTabId(id)
-    setRenameValue(label)
-    setShowAddTab(false)
-    setTabMenuId(null); setMenuPos(null)
+    setEditingTabId(id); setRenameValue(label); closeMenu()
   }
 
   const commitRename = async (id) => {
@@ -130,43 +99,29 @@ export default function Dashboard({ session }) {
     setEditingTabId(null)
     if (!label) return
     setTabs(prev => prev.map(t => t.id === id ? { ...t, label } : t))
-    const { error } = await supabase
-      .from('tab_configs').update({ label }).eq('id', id).eq('user_id', uid)
+    const { error } = await supabase.from('tab_configs').update({ label }).eq('id', id).eq('user_id', uid)
     if (error) console.error('rename tab:', error)
   }
 
-  const deleteTab = async (tab) => {
-    if (LOCKED_TYPES.has(tab.type)) return
-    if (!confirm(`Hapus tab "${tab.label}"?`)) return
-    const next = tabs.filter(t => t.id !== tab.id)
+  const moveTab = async (tab, dir) => {
+    const idx = tabs.findIndex(t => t.id === tab.id)
+    const newIdx = idx + dir
+    if (newIdx < 0 || newIdx >= tabs.length) return
+    const posA = tabs[idx].position
+    const posB = tabs[newIdx].position
+    const next = [...tabs]
+    ;[next[idx], next[newIdx]] = [next[newIdx], next[idx]]
     setTabs(next)
-    if (activeTab === tab.id) setActiveTab(next[0]?.id || null)
-    const { error } = await supabase
-      .from('tab_configs').delete().eq('id', tab.id).eq('user_id', uid)
-    if (error) { console.error('delete tab:', error); fetchTabs() }
-  }
-
-  const addTab = async () => {
-    const label = newLabel.trim()
-    if (!label || addingTab) return
-    setAddingTab(true)
-    const { data: newTab, error } = await supabase
-      .from('tab_configs')
-      .insert({ user_id: uid, label, type: newType, position: tabs.length })
-      .select()
-      .single()
-    if (error) { console.error('add tab:', error); setAddingTab(false); return }
-    setTabs(prev => [...prev, newTab])
-    setActiveTab(newTab.id)
-    setNewLabel('')
-    setNewType('bibit')
-    setShowAddTab(false)
-    setAddingTab(false)
+    closeMenu()
+    await Promise.all([
+      supabase.from('tab_configs').update({ position: posB }).eq('id', tabs[idx].id).eq('user_id', uid),
+      supabase.from('tab_configs').update({ position: posA }).eq('id', tabs[newIdx].id).eq('user_id', uid),
+    ])
   }
 
   const logout = async () => supabase.auth.signOut()
   const avatar = session.user.user_metadata?.avatar_url
-  const name = session.user.user_metadata?.full_name || session.user.email
+  const name   = session.user.user_metadata?.full_name || session.user.email
 
   const renderContent = () => {
     const tab = tabs.find(t => t.id === activeTab)
@@ -181,9 +136,6 @@ export default function Dashboard({ session }) {
         <div className="custom-tab-empty">
           <div className="custom-tab-icon">◈</div>
           <p>Tab <strong>{tab.label}</strong> kosong.</p>
-          <p className="muted" style={{ fontSize: '0.78rem', marginTop: 6 }}>
-            Konten custom akan tersedia di versi berikutnya.
-          </p>
         </div>
       )
     }
@@ -202,105 +154,67 @@ export default function Dashboard({ session }) {
 
       <nav className="tabnav">
         <div className="tabnav-tabs">
-          {tabs.map(t => {
-            const locked = LOCKED_TYPES.has(t.type)
-            return (
-              <div key={t.id} className={`tabnav-item ${activeTab === t.id ? 'active' : ''}`}>
-                {editingTabId === t.id ? (
-                  <input
-                    className="tabnav-rename"
-                    value={renameValue}
-                    onChange={e => setRenameValue(e.target.value)}
-                    onBlur={() => commitRename(t.id)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') commitRename(t.id)
-                      if (e.key === 'Escape') setEditingTabId(null)
-                    }}
-                    autoFocus
-                  />
-                ) : (
-                  <button
-                    className="tabnav-btn"
-                    onClick={() => setActiveTab(t.id)}
-                    onDoubleClick={() => startRename(t.id, t.label)}
-                    title="Klik untuk buka · Klik dua kali untuk rename"
-                  >
-                    {t.label}
-                  </button>
-                )}
+          {tabs.map(t => (
+            <div key={t.id} className={`tabnav-item ${activeTab === t.id ? 'active' : ''}`}>
+              {editingTabId === t.id ? (
+                <input
+                  className="tabnav-rename"
+                  value={renameValue}
+                  onChange={e => setRenameValue(e.target.value)}
+                  onBlur={() => commitRename(t.id)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') commitRename(t.id)
+                    if (e.key === 'Escape') setEditingTabId(null)
+                  }}
+                  autoFocus
+                />
+              ) : (
+                <button
+                  className="tabnav-btn"
+                  onClick={() => setActiveTab(t.id)}
+                  onDoubleClick={() => startRename(t.id, t.label)}
+                  title="Klik untuk buka · Klik dua kali untuk rename"
+                >
+                  <span className="tabnav-icon">{TAB_ICONS[t.type] || '○'}</span>
+                  {t.label}
+                </button>
+              )}
 
-                <div className="tabnav-menu-wrap">
-                  <button
-                    className={`tabnav-menu-btn ${tabMenuId === t.id ? 'open' : ''}`}
-                    onClick={e => {
-                      e.stopPropagation()
-                      if (tabMenuId === t.id) { setTabMenuId(null); setMenuPos(null); return }
-                      const rect = e.currentTarget.getBoundingClientRect()
-                      setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
-                      setTabMenuId(t.id)
-                    }}
-                    title="Opsi tab"
-                  >⋮</button>
-                </div>
+              <div className="tabnav-menu-wrap">
+                <button
+                  className={`tabnav-menu-btn ${tabMenuId === t.id ? 'open' : ''}`}
+                  onClick={e => {
+                    e.stopPropagation()
+                    if (tabMenuId === t.id) { closeMenu(); return }
+                    const rect = e.currentTarget.getBoundingClientRect()
+                    setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
+                    setTabMenuId(t.id)
+                  }}
+                  title="Opsi tab"
+                >⋮</button>
               </div>
-            )
-          })}
+            </div>
+          ))}
         </div>
 
-        {/* Tab menu dropdown — di luar overflow container agar tidak terpotong */}
+        {/* Dropdown di luar overflow container */}
         {tabMenuId && menuPos && (() => {
           const tab = tabs.find(t => t.id === tabMenuId)
           if (!tab) return null
-          const locked = LOCKED_TYPES.has(tab.type)
+          const idx = tabs.findIndex(t => t.id === tabMenuId)
           return (
             <div className="tabnav-menu-dropdown" style={{ position: 'fixed', top: menuPos.top, right: menuPos.right }}>
-              <button className="tabnav-menu-item" onClick={() => startRename(tab.id, tab.label)}>✏ Rename</button>
-              {!locked && (
-                <button className="tabnav-menu-item del" onClick={() => { setTabMenuId(null); setMenuPos(null); deleteTab(tab) }}>
-                  × Hapus Tab
-                </button>
+              {idx > 0 && (
+                <button className="tabnav-menu-item" onClick={() => moveTab(tab, -1)}>← Pindah Kiri</button>
               )}
+              {idx < tabs.length - 1 && (
+                <button className="tabnav-menu-item" onClick={() => moveTab(tab, 1)}>→ Pindah Kanan</button>
+              )}
+              {(idx > 0 || idx < tabs.length - 1) && <div className="tabnav-menu-divider" />}
+              <button className="tabnav-menu-item" onClick={() => startRename(tab.id, tab.label)}>✏ Rename</button>
             </div>
           )
         })()}
-
-        <div className="tabnav-add-wrap" ref={addDropdownRef}>
-          <button
-            className={`tabnav-add-btn ${showAddTab ? 'open' : ''}`}
-            onClick={() => { setShowAddTab(v => !v); setNewLabel(''); setNewType('bibit') }}
-            title="Tambah tab baru"
-          >+</button>
-
-          {showAddTab && (
-            <div className="tabnav-dropdown">
-              <p className="tabnav-dropdown-title">Tab Baru</p>
-              <input
-                className="tabnav-dropdown-input"
-                value={newLabel}
-                onChange={e => setNewLabel(e.target.value)}
-                placeholder="Nama tab..."
-                onKeyDown={e => e.key === 'Enter' && addTab()}
-                autoFocus
-              />
-              <select
-                className="tabnav-dropdown-select"
-                value={newType}
-                onChange={e => setNewType(e.target.value)}
-              >
-                {TAB_TYPES.map(t => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
-              </select>
-              <button
-                className="tabnav-dropdown-create"
-                onClick={addTab}
-                disabled={!newLabel.trim() || addingTab}
-              >
-                {addingTab ? 'Membuat...' : 'Buat Tab'}
-              </button>
-            </div>
-          )}
-        </div>
       </nav>
 
       <main className="main-content">

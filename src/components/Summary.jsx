@@ -19,7 +19,7 @@ export default function Summary({ data, uid, onRefresh }) {
 
   const tLiquid = tKas + tJHT
   const tInvest = tBibitAktual + tBinAktual
-  const tAsset  = tLiquid + tInvest
+  const tAsset  = tLiquid + tInvest + tFisik
 
   const prog = target > 0 ? Math.min((tAsset / target) * 100, 100) : 0
 
@@ -56,6 +56,7 @@ export default function Summary({ data, uid, onRefresh }) {
     { label: 'Binance', val: tBinAktual,   color: 'var(--amber)',  group: 'invest' },
     { label: 'Kas',     val: tKas,         color: 'var(--green)',  group: 'liquid' },
     { label: 'JHT',     val: tJHT,         color: 'var(--purple)', group: 'liquid' },
+    { label: 'Fisik',   val: tFisik,       color: 'var(--muted)',  group: 'fisik'  },
   ]
 
   return (
@@ -137,14 +138,14 @@ export default function Summary({ data, uid, onRefresh }) {
         </div>
       </div>
 
-      {/* Aset Fisik — tidak dihitung ke total */}
+      {/* Aset Fisik */}
       <div className="metrics-group">
         <div className="metrics-group-header">
           <span className="metrics-group-label">
             <span className="metrics-group-dot" style={{ background: 'var(--muted)' }} />
             Aset Fisik
           </span>
-          <span className="metrics-group-info">tidak dihitung ke total</span>
+          <span className="metrics-group-total">{fmt(tFisik)}</span>
         </div>
         <div className="metrics-grid">
           <div className="metric-card metric-fisik">
@@ -181,6 +182,26 @@ export default function Summary({ data, uid, onRefresh }) {
 
         <div className="alloc-group-label">Liquid</div>
         {allocs.filter(a => a.group === 'liquid').map(a => {
+          const pct = tAsset > 0 ? (a.val / tAsset) * 100 : 0
+          return (
+            <div key={a.label} className="alloc-row">
+              <div className="alloc-name">
+                <span className="alloc-dot" style={{ background: a.color }} />
+                {a.label}
+              </div>
+              <div className="alloc-track">
+                <div className="alloc-bar" style={{ width: `${pct}%`, background: a.color }} />
+              </div>
+              <span className="alloc-pct">{pct.toFixed(1)}%</span>
+              <span className="alloc-val">{fmt(a.val)}</span>
+            </div>
+          )
+        })}
+
+        <div className="alloc-divider" />
+
+        <div className="alloc-group-label">Fisik</div>
+        {allocs.filter(a => a.group === 'fisik').map(a => {
           const pct = tAsset > 0 ? (a.val / tAsset) * 100 : 0
           return (
             <div key={a.label} className="alloc-row">

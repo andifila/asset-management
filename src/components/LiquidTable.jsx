@@ -13,7 +13,7 @@ const KATEGORI = [
 
 const KAT_MAP = Object.fromEntries(KATEGORI.map(k => [k.value, k]))
 
-const EMPTY = { nama: '', jumlah: '', kategori: 'main_pocket', catatan: '' }
+const EMPTY = { nama: '', jumlah: '', kategori: 'main_pocket' }
 
 export default function LiquidTable({ data, jht, uid, onRefresh }) {
   const [modal, setModal]     = useState(false)
@@ -41,7 +41,6 @@ export default function LiquidTable({ data, jht, uid, onRefresh }) {
       nama: form.nama,
       jumlah: Number(form.jumlah),
       kategori: form.kategori,
-      catatan: form.catatan,
       user_id: uid,
     }
     console.log('[save] payload:', p)
@@ -102,10 +101,6 @@ export default function LiquidTable({ data, jht, uid, onRefresh }) {
             <label>Jumlah</label>
             <NumInput value={form.jumlah} onChange={v => set('jumlah', v)} placeholder="0" />
           </div>
-          <div className="field">
-            <label>Catatan</label>
-            <input value={form.catatan || ''} onChange={e => set('catatan', e.target.value)} placeholder="Opsional" />
-          </div>
         </Modal>
       )}
 
@@ -134,13 +129,12 @@ export default function LiquidTable({ data, jht, uid, onRefresh }) {
               <th>Kategori</th>
               <th>Nama</th>
               <th className="num">Jumlah</th>
-              <th>Catatan</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             {data.length === 0 && (
-              <tr><td colSpan={5} className="empty-state">Belum ada data</td></tr>
+              <tr><td colSpan={4} className="empty-state">Belum ada data</td></tr>
             )}
             {data.map(r => {
               const kat = KAT_MAP[r.kategori] || KAT_MAP['lainnya']
@@ -149,7 +143,6 @@ export default function LiquidTable({ data, jht, uid, onRefresh }) {
                   <td><span className={`badge ${kat.cls}`}>{kat.label}</span></td>
                   <td>{r.nama}</td>
                   <td className="num">{fmt(r.jumlah)}</td>
-                  <td className="muted">{r.catatan || '—'}</td>
                   <td className="actions">
                     <button className="btn-icon" onClick={() => openEdit(r)}>✏</button>
                     <button className="btn-icon del" onClick={() => del(r.id)}>×</button>
@@ -162,7 +155,7 @@ export default function LiquidTable({ data, jht, uid, onRefresh }) {
             <tr>
               <td colSpan={2}><strong>Total Kas</strong></td>
               <td className="num"><strong>{fmt(total)}</strong></td>
-              <td colSpan={2} />
+              <td />
             </tr>
           </tfoot>
         </table>
