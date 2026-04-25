@@ -15,9 +15,36 @@ export default function BibitTable({ data, uid, onRefresh }) {
   const [editId, setEditId]   = useState(null)
   const [saving, setSaving]   = useState(false)
   const [saveErr, setSaveErr] = useState(null)
+  const [sortKey, setSortKey] = useState(null)
+  const [sortDir, setSortDir] = useState('asc')
 
   const tSaldo  = data.reduce((s, r) => s + Number(r.saldo), 0)
   const tAktual = data.reduce((s, r) => s + Number(r.aktual), 0)
+
+  const toggleSort = (key) => {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortKey(key); setSortDir('asc') }
+  }
+
+  const sorted = [...data].sort((a, b) => {
+    if (!sortKey) return 0
+    let av, bv
+    if (sortKey === '_pnl') {
+      av = Number(a.aktual) - Number(a.saldo)
+      bv = Number(b.aktual) - Number(b.saldo)
+    } else {
+      av = a[sortKey]; bv = b[sortKey]
+    }
+    const na = Number(av), nb = Number(bv)
+    const cmp = !isNaN(na) && !isNaN(nb) ? na - nb : String(av || '').localeCompare(String(bv || ''))
+    return sortDir === 'asc' ? cmp : -cmp
+  })
+
+  const SortTh = ({ k, children, className }) => (
+    <th className={`sortable${sortKey === k ? ' sorted' : ''}${className ? ' ' + className : ''}`} onClick={() => toggleSort(k)}>
+      {children}<span className="sort-icon">{sortKey === k ? (sortDir === 'asc' ? '↑' : '↓') : '⇅'}</span>
+    </th>
+  )
 
   const openAdd  = () => { setForm(EMPTY); setEditId(null); setSaveErr(null); setModal(true) }
   const openEdit = (r) => { setForm(r); setEditId(r.id); setSaveErr(null); setModal(true) }
@@ -78,14 +105,18 @@ export default function BibitTable({ data, uid, onRefresh }) {
       <div className="table-wrap">
         <table>
           <thead><tr>
-            <th>Nama Aset</th><th>Kategori</th>
-            <th className="num">Saldo</th><th className="num">Aktual</th><th className="num">PnL</th><th></th>
+            <SortTh k="nama_aset">Nama Aset</SortTh>
+            <SortTh k="kategori">Kategori</SortTh>
+            <SortTh k="saldo" className="num">Saldo</SortTh>
+            <SortTh k="aktual" className="num">Aktual</SortTh>
+            <SortTh k="_pnl" className="num">PnL</SortTh>
+            <th></th>
           </tr></thead>
           <tbody>
-            {data.length === 0 && (
+            {sorted.length === 0 && (
               <tr><td colSpan={6} className="empty-state">Belum ada data</td></tr>
             )}
-            {data.map(r => {
+            {sorted.map(r => {
               const pnl = Number(r.aktual) - Number(r.saldo)
               return (
                 <tr key={r.id}>
@@ -95,8 +126,10 @@ export default function BibitTable({ data, uid, onRefresh }) {
                   <td className="num">{fmt(r.aktual)}</td>
                   <td className={`num ${pnl >= 0 ? 'pos' : 'neg'}`}>{fmtPnl(pnl)}</td>
                   <td className="actions">
-                    <button className="btn-icon" onClick={() => openEdit(r)}>✏</button>
-                    <button className="btn-icon del" onClick={() => del(r.id)}>×</button>
+                    <div className="row-actions">
+                      <button className="btn-icon" onClick={() => openEdit(r)} title="Edit">✏</button>
+                      <button className="btn-icon del" onClick={() => del(r.id)} title="Hapus">×</button>
+                    </div>
                   </td>
                 </tr>
               )

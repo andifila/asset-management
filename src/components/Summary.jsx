@@ -42,12 +42,14 @@ export default function Summary({ data, uid, onRefresh }) {
       value: fmt(tBibitAktual),
       sub: fmtPnl(tBibitAktual - tBibitSaldo),
       subClass: tBibitAktual >= tBibitSaldo ? 'pos' : 'neg',
+      icon: tBibitAktual >= tBibitSaldo ? '▲' : '▼',
     },
     {
       label: 'Binance',
       value: fmt(tBinAktual),
       sub: fmtPnl(tBinAktual - tBinSaldo),
       subClass: tBinAktual >= tBinSaldo ? 'pos' : 'neg',
+      icon: tBinAktual >= tBinSaldo ? '▲' : '▼',
     },
   ]
 
@@ -132,7 +134,10 @@ export default function Summary({ data, uid, onRefresh }) {
             <div key={i} className="metric-card">
               <div className="metric-label">{m.label}</div>
               <div className="metric-value">{m.value}</div>
-              <div className={`metric-sub ${m.subClass || ''}`}>{m.sub}</div>
+              <div className={`metric-sub ${m.subClass || ''}`}>
+                {m.icon && <span className="metric-pnl-icon">{m.icon}</span>}
+                {m.sub}
+              </div>
             </div>
           ))}
         </div>

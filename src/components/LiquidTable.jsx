@@ -24,8 +24,29 @@ export default function LiquidTable({ data, jht, uid, onRefresh }) {
   const [jhtVal, setJhtVal]   = useState(jht)
   const [savingJHT, setSavingJHT] = useState(false)
   const [jhtErr, setJhtErr]   = useState(null)
+  const [sortKey, setSortKey] = useState(null)
+  const [sortDir, setSortDir] = useState('asc')
 
   const total = data.reduce((s, r) => s + Number(r.jumlah), 0)
+
+  const toggleSort = (key) => {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortKey(key); setSortDir('asc') }
+  }
+
+  const sorted = [...data].sort((a, b) => {
+    if (!sortKey) return 0
+    const av = a[sortKey], bv = b[sortKey]
+    const na = Number(av), nb = Number(bv)
+    const cmp = !isNaN(na) && !isNaN(nb) ? na - nb : String(av || '').localeCompare(String(bv || ''))
+    return sortDir === 'asc' ? cmp : -cmp
+  })
+
+  const SortTh = ({ k, children, className }) => (
+    <th className={`sortable${sortKey === k ? ' sorted' : ''}${className ? ' ' + className : ''}`} onClick={() => toggleSort(k)}>
+      {children}<span className="sort-icon">{sortKey === k ? (sortDir === 'asc' ? '↑' : '↓') : '⇅'}</span>
+    </th>
+  )
 
   const tMainPocket  = data.filter(r => r.kategori === 'main_pocket').reduce((s, r) => s + Number(r.jumlah), 0)
   const tDanaDarurat = data.filter(r => r.kategori === 'dana_darurat').reduce((s, r) => s + Number(r.jumlah), 0)
@@ -126,17 +147,17 @@ export default function LiquidTable({ data, jht, uid, onRefresh }) {
         <table>
           <thead>
             <tr>
-              <th>Kategori</th>
-              <th>Nama</th>
-              <th className="num">Jumlah</th>
+              <SortTh k="kategori">Kategori</SortTh>
+              <SortTh k="nama">Nama</SortTh>
+              <SortTh k="jumlah" className="num">Jumlah</SortTh>
               <th></th>
             </tr>
           </thead>
           <tbody>
-            {data.length === 0 && (
+            {sorted.length === 0 && (
               <tr><td colSpan={4} className="empty-state">Belum ada data</td></tr>
             )}
-            {data.map(r => {
+            {sorted.map(r => {
               const kat = KAT_MAP[r.kategori] || KAT_MAP['lainnya']
               return (
                 <tr key={r.id}>
@@ -144,8 +165,10 @@ export default function LiquidTable({ data, jht, uid, onRefresh }) {
                   <td>{r.nama}</td>
                   <td className="num">{fmt(r.jumlah)}</td>
                   <td className="actions">
-                    <button className="btn-icon" onClick={() => openEdit(r)}>✏</button>
-                    <button className="btn-icon del" onClick={() => del(r.id)}>×</button>
+                    <div className="row-actions">
+                      <button className="btn-icon" onClick={() => openEdit(r)} title="Edit">✏</button>
+                      <button className="btn-icon del" onClick={() => del(r.id)} title="Hapus">×</button>
+                    </div>
                   </td>
                 </tr>
               )

@@ -12,6 +12,8 @@ export default function BinanceTable({ data, uid, onRefresh }) {
   const [editId, setEditId]   = useState(null)
   const [saving, setSaving]   = useState(false)
   const [saveErr, setSaveErr] = useState(null)
+  const [sortKey, setSortKey] = useState(null)
+  const [sortDir, setSortDir] = useState('asc')
 
   const [saldoUsdt,  setSaldoUsdt]  = useState('')
   const [aktualUsdt, setAktualUsdt] = useState('')
@@ -23,6 +25,31 @@ export default function BinanceTable({ data, uid, onRefresh }) {
 
   const tSaldo  = data.reduce((s, r) => s + Number(r.saldo), 0)
   const tAktual = data.reduce((s, r) => s + Number(r.aktual), 0)
+
+  const toggleSort = (key) => {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortKey(key); setSortDir('asc') }
+  }
+
+  const sorted = [...data].sort((a, b) => {
+    if (!sortKey) return 0
+    let av, bv
+    if (sortKey === '_pnl') {
+      av = Number(a.aktual) - Number(a.saldo)
+      bv = Number(b.aktual) - Number(b.saldo)
+    } else {
+      av = a[sortKey]; bv = b[sortKey]
+    }
+    const na = Number(av), nb = Number(bv)
+    const cmp = !isNaN(na) && !isNaN(nb) ? na - nb : String(av || '').localeCompare(String(bv || ''))
+    return sortDir === 'asc' ? cmp : -cmp
+  })
+
+  const SortTh = ({ k, children, className }) => (
+    <th className={`sortable${sortKey === k ? ' sorted' : ''}${className ? ' ' + className : ''}`} onClick={() => toggleSort(k)}>
+      {children}<span className="sort-icon">{sortKey === k ? (sortDir === 'asc' ? '↑' : '↓') : '⇅'}</span>
+    </th>
+  )
 
   const fetchRate = async () => {
     setRateLoading(true); setRateErr(null)
@@ -189,19 +216,19 @@ export default function BinanceTable({ data, uid, onRefresh }) {
         <table>
           <thead>
             <tr>
-              <th>Symbol</th>
-              <th className="num">Saldo (IDR)</th>
-              <th className="num">Aktual (IDR)</th>
-              <th className="num">PnL</th>
+              <SortTh k="symbol">Symbol</SortTh>
+              <SortTh k="saldo" className="num">Saldo (IDR)</SortTh>
+              <SortTh k="aktual" className="num">Aktual (IDR)</SortTh>
+              <SortTh k="_pnl" className="num">PnL</SortTh>
               {usdtRate && <th className="num">Aktual (USDT)</th>}
               <th></th>
             </tr>
           </thead>
           <tbody>
-            {data.length === 0 && (
+            {sorted.length === 0 && (
               <tr><td colSpan={usdtRate ? 5 : 4} className="empty-state">Belum ada data</td></tr>
             )}
-            {data.map(r => {
+            {sorted.map(r => {
               const pnl = Number(r.aktual) - Number(r.saldo)
               return (
                 <tr key={r.id}>
@@ -215,8 +242,10 @@ export default function BinanceTable({ data, uid, onRefresh }) {
                     </td>
                   )}
                   <td className="actions">
-                    <button className="btn-icon" onClick={() => openEdit(r)}>✏</button>
-                    <button className="btn-icon del" onClick={() => del(r.id)}>×</button>
+                    <div className="row-actions">
+                      <button className="btn-icon" onClick={() => openEdit(r)} title="Edit">✏</button>
+                      <button className="btn-icon del" onClick={() => del(r.id)} title="Hapus">×</button>
+                    </div>
                   </td>
                 </tr>
               )

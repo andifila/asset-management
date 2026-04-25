@@ -13,8 +13,50 @@ export default function PhysicalTable({ data, uid, onRefresh }) {
   const [editId, setEditId]   = useState(null)
   const [saving, setSaving]   = useState(false)
   const [saveErr, setSaveErr] = useState(null)
+  const [sortKey, setSortKey] = useState(null)
+  const [sortDir, setSortDir] = useState('asc')
 
   const total = data.reduce((s, r) => s + Number(r.buy_price), 0)
+
+  // Rank by harga/bulan ascending — rank 1 = paling efisien (biaya per bulan paling rendah)
+  const effRanks = (() => {
+    const items = data.map(r => {
+      const m = calcMonths(r.buy_date)
+      return { id: r.id, pb: m ? Number(r.buy_price) / m : null }
+    }).filter(r => r.pb !== null).sort((a, b) => a.pb - b.pb)
+    const map = {}
+    items.forEach((r, i) => { map[r.id] = i + 1 })
+    return map
+  })()
+
+  const toggleSort = (key) => {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortKey(key); setSortDir('asc') }
+  }
+
+  const sorted = [...data].sort((a, b) => {
+    if (!sortKey) return 0
+    let av, bv
+    if (sortKey === '_perBulan') {
+      const ma = calcMonths(a.buy_date), mb = calcMonths(b.buy_date)
+      av = ma ? Number(a.buy_price) / ma : Infinity
+      bv = mb ? Number(b.buy_price) / mb : Infinity
+    } else if (sortKey === '_rank') {
+      av = effRanks[a.id] ?? Infinity
+      bv = effRanks[b.id] ?? Infinity
+    } else {
+      av = a[sortKey]; bv = b[sortKey]
+    }
+    const na = Number(av), nb = Number(bv)
+    const cmp = !isNaN(na) && !isNaN(nb) ? na - nb : String(av || '').localeCompare(String(bv || ''))
+    return sortDir === 'asc' ? cmp : -cmp
+  })
+
+  const SortTh = ({ k, children, className }) => (
+    <th className={`sortable${sortKey === k ? ' sorted' : ''}${className ? ' ' + className : ''}`} onClick={() => toggleSort(k)}>
+      {children}<span className="sort-icon">{sortKey === k ? (sortDir === 'asc' ? '↑' : '↓') : '⇅'}</span>
+    </th>
+  )
 
   const openAdd  = () => { setForm({ ...EMPTY, buy_date: new Date().toISOString().slice(0, 10) }); setEditId(null); setSaveErr(null); setModal(true) }
   const openEdit = (r) => { setForm({ ...r, buy_date: r.buy_date?.slice(0, 10) || '' }); setEditId(r.id); setSaveErr(null); setModal(true) }
@@ -84,22 +126,25 @@ export default function PhysicalTable({ data, uid, onRefresh }) {
         <table>
           <thead>
             <tr>
-              <th>Nama Aset</th>
-              <th className="num">Harga Beli</th>
-              <th>Tgl Beli</th>
+              <SortTh k="asset_name">Nama Aset</SortTh>
+              <SortTh k="buy_price" className="num">Harga Beli</SortTh>
+              <SortTh k="buy_date">Tgl Beli</SortTh>
               <th>Umur</th>
-              <th className="num">Harga/Bulan</th>
-              <th>Kategori</th>
+              <SortTh k="_perBulan" className="num">Harga/Bulan</SortTh>
+              <SortTh k="_rank" className="num">Efisiensi</SortTh>
+              <SortTh k="kategori">Kategori</SortTh>
               <th></th>
             </tr>
           </thead>
           <tbody>
-            {data.length === 0 && (
-              <tr><td colSpan={7} className="empty-state">Belum ada data</td></tr>
+            {sorted.length === 0 && (
+              <tr><td colSpan={8} className="empty-state">Belum ada data</td></tr>
             )}
-            {data.map(r => {
+            {sorted.map(r => {
               const months = calcMonths(r.buy_date)
               const perBulan = months ? Math.round(Number(r.buy_price) / months) : null
+              const rank = effRanks[r.id]
+              const rankCls = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : 'rank-n'
               return (
                 <tr key={r.id}>
                   <td>{r.asset_name}</td>
@@ -111,10 +156,15 @@ export default function PhysicalTable({ data, uid, onRefresh }) {
                       <span className="per-bulan">{fmt(perBulan)}<span className="per-bulan-unit">/bln</span></span>
                     ) : <span className="muted">—</span>}
                   </td>
+                  <td className="num">
+                    {rank ? <span className={`rank-badge ${rankCls}`}>#{rank}</span> : <span className="muted">—</span>}
+                  </td>
                   <td>{r.kategori ? <span className="badge badge-gray">{r.kategori}</span> : <span className="muted">—</span>}</td>
                   <td className="actions">
-                    <button className="btn-icon" onClick={() => openEdit(r)}>✏</button>
-                    <button className="btn-icon del" onClick={() => del(r.id)}>×</button>
+                    <div className="row-actions">
+                      <button className="btn-icon" onClick={() => openEdit(r)} title="Edit">✏</button>
+                      <button className="btn-icon del" onClick={() => del(r.id)} title="Hapus">×</button>
+                    </div>
                   </td>
                 </tr>
               )
@@ -124,7 +174,7 @@ export default function PhysicalTable({ data, uid, onRefresh }) {
             <tr>
               <td><strong>Total ({data.length} item)</strong></td>
               <td className="num"><strong>{fmt(total)}</strong></td>
-              <td colSpan={5} />
+              <td colSpan={6} />
             </tr>
           </tfoot>
         </table>
