@@ -177,6 +177,13 @@ body {
 }
 .tabnav-rename:focus { outline: none; }
 
+.tabnav-icon { margin-right: 5px; opacity: 0.6; font-size: 0.75rem; }
+.tabnav-item.active .tabnav-icon { opacity: 1; }
+
+.tabnav-menu-divider {
+  height: 1px; background: var(--border); margin: 3px 0;
+}
+
 /* ADD TAB */
 .tabnav-add-wrap {
   display: flex; align-items: center;
@@ -252,6 +259,7 @@ td { padding: 0.625rem 0.875rem; border-top: 1px solid var(--border); color: var
 tbody tr:hover td { background: rgba(255,255,255,0.02); }
 tfoot td { border-top: 1px solid var(--border2); background: var(--bg3); }
 .num { text-align: right; font-family: 'DM Mono', monospace; font-size: 0.78rem; }
+.empty-state { text-align: center; color: var(--muted); padding: 2rem 1rem; font-size: 0.82rem; }
 .pos { color: var(--green); }
 .neg { color: var(--red); }
 .muted { color: var(--muted); }

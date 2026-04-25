@@ -198,6 +198,9 @@ export default function BinanceTable({ data, uid, onRefresh }) {
             </tr>
           </thead>
           <tbody>
+            {data.length === 0 && (
+              <tr><td colSpan={usdtRate ? 5 : 4} className="empty-state">Belum ada data</td></tr>
+            )}
             {data.map(r => {
               const pnl = Number(r.aktual) - Number(r.saldo)
               return (

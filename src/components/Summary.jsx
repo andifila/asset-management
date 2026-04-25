@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { fmt, fmtPnl } from '../lib/format'
+import NumInput from './NumInput'
 
 export default function Summary({ data, uid, onRefresh }) {
   const { bibit, binance, fisik, kas, jht, target } = data
@@ -66,7 +67,7 @@ export default function Summary({ data, uid, onRefresh }) {
           {editTarget ? (
             <>
               <span className="label-sm">Target:</span>
-              <input type="number" value={newTarget} onChange={e => setNewTarget(Number(e.target.value))} className="target-input" />
+              <NumInput value={newTarget} onChange={v => setNewTarget(v)} className="target-input" />
               <button className="btn-xs btn-primary" onClick={saveTarget}>Simpan</button>
               <button className="btn-xs" onClick={() => setEditTarget(false)}>Batal</button>
             </>

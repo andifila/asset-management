@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { fmt, fmtPnl } from '../lib/format'
 import Modal from './Modal'
+import NumInput from './NumInput'
 
 const EMPTY = { nama_aset: '', kategori: 'pasar_uang', saldo: '', aktual: '', catatan: '' }
 const KAT_LABEL = { pasar_uang: 'Pasar Uang', obligasi: 'Obligasi', saham: 'Saham' }
@@ -62,10 +63,10 @@ export default function BibitTable({ data, uid, onRefresh }) {
           </div>
           <div className="field-row">
             <div className="field"><label>Saldo (Modal)</label>
-              <input type="number" value={form.saldo} onChange={e => set('saldo', e.target.value)} placeholder="0" />
+              <NumInput value={form.saldo} onChange={v => set('saldo', v)} placeholder="0" />
             </div>
             <div className="field"><label>Aktual (Sekarang)</label>
-              <input type="number" value={form.aktual} onChange={e => set('aktual', e.target.value)} placeholder="0" />
+              <NumInput value={form.aktual} onChange={v => set('aktual', v)} placeholder="0" />
             </div>
           </div>
           <div className="field"><label>Catatan</label>
@@ -81,6 +82,9 @@ export default function BibitTable({ data, uid, onRefresh }) {
             <th className="num">Saldo</th><th className="num">Aktual</th><th className="num">PnL</th><th></th>
           </tr></thead>
           <tbody>
+            {data.length === 0 && (
+              <tr><td colSpan={6} className="empty-state">Belum ada data</td></tr>
+            )}
             {data.map(r => {
               const pnl = Number(r.aktual) - Number(r.saldo)
               return (

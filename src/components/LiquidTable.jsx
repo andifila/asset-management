@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { fmt } from '../lib/format'
 import Modal from './Modal'
+import NumInput from './NumInput'
 
 const KATEGORI = [
   { value: 'main_pocket', label: 'Main Pocket', cls: 'badge-blue' },
@@ -99,7 +100,7 @@ export default function LiquidTable({ data, jht, uid, onRefresh }) {
           </div>
           <div className="field">
             <label>Jumlah</label>
-            <input type="number" value={form.jumlah} onChange={e => set('jumlah', e.target.value)} placeholder="0" />
+            <NumInput value={form.jumlah} onChange={v => set('jumlah', v)} placeholder="0" />
           </div>
           <div className="field">
             <label>Catatan</label>
@@ -138,6 +139,9 @@ export default function LiquidTable({ data, jht, uid, onRefresh }) {
             </tr>
           </thead>
           <tbody>
+            {data.length === 0 && (
+              <tr><td colSpan={5} className="empty-state">Belum ada data</td></tr>
+            )}
             {data.map(r => {
               const kat = KAT_MAP[r.kategori] || KAT_MAP['lainnya']
               return (
@@ -176,12 +180,7 @@ export default function LiquidTable({ data, jht, uid, onRefresh }) {
         <div className="jht-body">
           <div className="jht-amount">{fmt(jht)}</div>
           <div className="jht-edit">
-            <input
-              type="number"
-              value={jhtVal}
-              onChange={e => setJhtVal(e.target.value)}
-              className="jht-input"
-            />
+            <NumInput value={jhtVal} onChange={v => setJhtVal(v)} className="jht-input" />
             <button className="btn-save" onClick={saveJHT} disabled={savingJHT}>
               {savingJHT ? 'Menyimpan...' : 'Update'}
             </button>

@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { fmt, fmtDate, calcAge, calcMonths } from '../lib/format'
 import Modal from './Modal'
+import NumInput from './NumInput'
 
 const EMPTY = { asset_name: '', buy_price: '', buy_date: '', kategori: '', catatan: '' }
 
@@ -61,7 +62,7 @@ export default function PhysicalTable({ data, uid, onRefresh }) {
           <div className="field-row">
             <div className="field">
               <label>Harga Beli</label>
-              <input type="number" value={form.buy_price} onChange={e => set('buy_price', e.target.value)} placeholder="0" />
+              <NumInput value={form.buy_price} onChange={v => set('buy_price', v)} placeholder="0" />
             </div>
             <div className="field">
               <label>Tanggal Beli</label>
@@ -93,6 +94,9 @@ export default function PhysicalTable({ data, uid, onRefresh }) {
             </tr>
           </thead>
           <tbody>
+            {data.length === 0 && (
+              <tr><td colSpan={7} className="empty-state">Belum ada data</td></tr>
+            )}
             {data.map(r => {
               const months = calcMonths(r.buy_date)
               const perBulan = months ? Math.round(Number(r.buy_price) / months) : null
