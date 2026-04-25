@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from './lib/supabase'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
+import { LangProvider } from './lib/LangContext'
 
 export default function App() {
   const [session, setSession] = useState(undefined) // undefined = loading
@@ -20,5 +21,9 @@ export default function App() {
     </div>
   )
 
-  return session ? <Dashboard session={session} /> : <Login />
+  return (
+    <LangProvider>
+      {session ? <Dashboard session={session} /> : <Login />}
+    </LangProvider>
+  )
 }

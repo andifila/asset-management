@@ -5,6 +5,7 @@ import { fmt } from '../lib/format'
 import Modal from './Modal'
 import ConfirmModal from './ConfirmModal'
 import NumInput from './NumInput'
+import { useLang } from '../lib/LangContext'
 
 const KATEGORI = [
   { value: 'main_pocket',  label: 'Main Pocket',  cls: 'badge-blue' },
@@ -15,6 +16,7 @@ const KAT_MAP = Object.fromEntries(KATEGORI.map(k => [k.value, k]))
 const EMPTY = { nama: '', jumlah: '', kategori: 'main_pocket' }
 
 export default function LiquidTable({ data, jht, uid, onRefresh, showToast }) {
+  const { t } = useLang()
   const [modal, setModal]       = useState(false)
   const [form, setForm]         = useState(EMPTY)
   const [editId, setEditId]     = useState(null)
@@ -57,8 +59,8 @@ export default function LiquidTable({ data, jht, uid, onRefresh, showToast }) {
   const close    = () => { setModal(false); setEditId(null); setSaveErr(null) }
 
   const save = async () => {
-    if (!form.nama.trim()) { setSaveErr('Nama tidak boleh kosong'); return }
-    if (Number(form.jumlah) <= 0) { setSaveErr('Jumlah harus lebih dari 0'); return }
+    if (!form.nama.trim()) { setSaveErr(t('errNama')); return }
+    if (Number(form.jumlah) <= 0) { setSaveErr(t('errJumlah')); return }
     setSaving(true); setSaveErr(null)
     const p = { nama: form.nama.trim(), jumlah: Number(form.jumlah), kategori: form.kategori, user_id: uid }
     const result = editId
@@ -67,19 +69,18 @@ export default function LiquidTable({ data, jht, uid, onRefresh, showToast }) {
     setSaving(false)
     if (result.error) { setSaveErr(result.error.message); return }
     close(); onRefresh()
-    showToast(editId ? 'Entri berhasil diperbarui' : 'Entri berhasil ditambahkan')
+    showToast(editId ? t('toastUpdated') : t('toastAdded'))
   }
 
   const del = async () => {
     setDeleting(true)
     await supabase.from('liquid_assets').delete().eq('id', confirmItem.id)
     setDeleting(false); setConfirmItem(null)
-    showToast('Entri berhasil dihapus')
-    onRefresh()
+    showToast(t('toastDeleted')); onRefresh()
   }
 
   const saveJHT = async () => {
-    if (Number(jhtVal) < 0) { setJhtErr('Jumlah tidak boleh negatif'); return }
+    if (Number(jhtVal) < 0) { setJhtErr(t('errJhtNeg')); return }
     setSavingJHT(true); setJhtErr(null)
     const { data: ex } = await supabase.from('jht_assets').select('id').eq('user_id', uid).maybeSingle()
     const { error } = ex
@@ -88,7 +89,7 @@ export default function LiquidTable({ data, jht, uid, onRefresh, showToast }) {
     setSavingJHT(false)
     if (error) { setJhtErr(error.message); return }
     onRefresh()
-    showToast('Saldo JHT berhasil diperbarui')
+    showToast(t('toastUpdated'))
   }
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -96,24 +97,24 @@ export default function LiquidTable({ data, jht, uid, onRefresh, showToast }) {
   return (
     <div>
       <div className="section-header">
-        <h2 className="section-title">Aset Liquid</h2>
-        <button className="btn-add" onClick={openAdd}>+ Tambah</button>
+        <h2 className="section-title">{t('liquidTitle')}</h2>
+        <button className="btn-add" onClick={openAdd}>{t('add')}</button>
       </div>
 
       {modal && (
-        <Modal title={editId ? 'Edit Aset Liquid' : 'Tambah Aset Liquid'} onClose={close} onSave={save} saving={saving} error={saveErr}>
+        <Modal title={editId ? t('editLiquid') : t('addLiquid')} onClose={close} onSave={save} saving={saving} error={saveErr}>
           <div className="field">
-            <label>Kategori</label>
+            <label>{t('category')}</label>
             <select value={form.kategori} onChange={e => set('kategori', e.target.value)}>
-              {KATEGORI.map(k => <option key={k.value} value={k.value}>{k.label}</option>)}
+              {KATEGORI.map(k => <option key={k.value} value={k.value}>{t(k.value)}</option>)}
             </select>
           </div>
           <div className="field">
-            <label>Nama / Keterangan</label>
+            <label>{t('nameHint')}</label>
             <input value={form.nama} onChange={e => set('nama', e.target.value)} placeholder="BCA Tabungan / Dana Darurat BRI / dll" autoFocus />
           </div>
           <div className="field">
-            <label>Jumlah</label>
+            <label>{t('amount')}</label>
             <NumInput value={form.jumlah} onChange={v => set('jumlah', v)} placeholder="0" />
           </div>
         </Modal>
@@ -144,21 +145,21 @@ export default function LiquidTable({ data, jht, uid, onRefresh, showToast }) {
         <table>
           <thead>
             <tr>
-              <SortTh k="kategori">Kategori</SortTh>
-              <SortTh k="nama">Nama</SortTh>
-              <SortTh k="jumlah" className="num">Jumlah</SortTh>
+              <SortTh k="kategori">{t('category')}</SortTh>
+              <SortTh k="nama">{t('name')}</SortTh>
+              <SortTh k="jumlah" className="num">{t('amount')}</SortTh>
               <th></th>
             </tr>
           </thead>
           <tbody>
             {sorted.length === 0 && (
-              <tr><td colSpan={4} className="empty-state">Belum ada data</td></tr>
+              <tr><td colSpan={4} className="empty-state">{t('noData')}</td></tr>
             )}
             {sorted.map(r => {
               const kat = KAT_MAP[r.kategori] || KAT_MAP['lainnya']
               return (
                 <tr key={r.id}>
-                  <td><span className={`badge ${kat.cls}`}>{kat.label}</span></td>
+                  <td><span className={`badge ${kat.cls}`}>{t(kat.value)}</span></td>
                   <td>{r.nama}</td>
                   <td className="num">{fmt(r.jumlah)}</td>
                   <td className="actions">
@@ -173,7 +174,7 @@ export default function LiquidTable({ data, jht, uid, onRefresh, showToast }) {
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan={2}><strong>Total Kas</strong></td>
+              <td colSpan={2}><strong>{t('totalCash')}</strong></td>
               <td className="num"><strong>{fmt(total)}</strong></td>
               <td />
             </tr>
@@ -184,17 +185,17 @@ export default function LiquidTable({ data, jht, uid, onRefresh, showToast }) {
       <div className="jht-card">
         <div className="jht-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-            <h2 className="section-title">JHT — BPJS Ketenagakerjaan</h2>
+            <h2 className="section-title">{t('jhtTitle')}</h2>
             <span className="badge badge-purple">Liquid</span>
           </div>
-          <p className="muted" style={{ fontSize: '0.8rem' }}>Update manual setiap ada perubahan saldo</p>
+          <p className="muted" style={{ fontSize: '0.8rem' }}>{t('jhtSub')}</p>
         </div>
         <div className="jht-body">
           <div className="jht-amount">{fmt(jht)}</div>
           <div className="jht-edit">
             <NumInput value={jhtVal} onChange={v => setJhtVal(v)} className="jht-input" />
             <button className="btn-save" onClick={saveJHT} disabled={savingJHT}>
-              {savingJHT ? 'Menyimpan...' : 'Update'}
+              {savingJHT ? t('updating') : t('update')}
             </button>
           </div>
         </div>

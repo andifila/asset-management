@@ -5,10 +5,12 @@ import { fmt, fmtDate, calcAge, calcMonths } from '../lib/format'
 import Modal from './Modal'
 import ConfirmModal from './ConfirmModal'
 import NumInput from './NumInput'
+import { useLang } from '../lib/LangContext'
 
 const EMPTY = { asset_name: '', buy_price: '', buy_date: '', catatan: '' }
 
 export default function PhysicalTable({ data, uid, onRefresh, showToast }) {
+  const { t } = useLang()
   const [modal, setModal]       = useState(false)
   const [form, setForm]         = useState(EMPTY)
   const [editId, setEditId]     = useState(null)
@@ -63,8 +65,8 @@ export default function PhysicalTable({ data, uid, onRefresh, showToast }) {
   const close    = () => { setModal(false); setEditId(null); setSaveErr(null) }
 
   const save = async () => {
-    if (!form.asset_name.trim()) { setSaveErr('Nama aset tidak boleh kosong'); return }
-    if (Number(form.buy_price) <= 0) { setSaveErr('Harga beli harus lebih dari 0'); return }
+    if (!form.asset_name.trim()) { setSaveErr(t('errName')); return }
+    if (Number(form.buy_price) <= 0) { setSaveErr(t('errBuyPrice')); return }
     setSaving(true); setSaveErr(null)
     const p = {
       asset_name: form.asset_name.trim(),
@@ -79,15 +81,14 @@ export default function PhysicalTable({ data, uid, onRefresh, showToast }) {
     setSaving(false)
     if (error) { setSaveErr(error.message); return }
     close(); onRefresh()
-    showToast(editId ? 'Aset berhasil diperbarui' : 'Aset berhasil ditambahkan')
+    showToast(editId ? t('toastUpdated') : t('toastAdded'))
   }
 
   const del = async () => {
     setDeleting(true)
     await supabase.from('physical_assets').delete().eq('id', confirmItem.id)
     setDeleting(false); setConfirmItem(null)
-    showToast('Aset berhasil dihapus')
-    onRefresh()
+    showToast(t('toastDeleted')); onRefresh()
   }
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -97,8 +98,8 @@ export default function PhysicalTable({ data, uid, onRefresh, showToast }) {
   return (
     <div>
       <div className="section-header">
-        <h2 className="section-title">Aset Fisik</h2>
-        <button className="btn-add" onClick={openAdd}>+ Tambah</button>
+        <h2 className="section-title">{t('physicalTitle')}</h2>
+        <button className="btn-add" onClick={openAdd}>{t('add')}</button>
       </div>
 
       {confirmItem && (
@@ -106,24 +107,24 @@ export default function PhysicalTable({ data, uid, onRefresh, showToast }) {
       )}
 
       {modal && (
-        <Modal title={editId ? 'Edit Aset Fisik' : 'Tambah Aset Fisik'} onClose={close} onSave={save} saving={saving} error={saveErr}>
+        <Modal title={editId ? t('editPhysical') : t('addPhysical')} onClose={close} onSave={save} saving={saving} error={saveErr}>
           <div className="field">
-            <label>Nama Aset</label>
+            <label>{t('assetName')}</label>
             <input value={form.asset_name} onChange={e => set('asset_name', e.target.value)} placeholder="Jam Tangan / iPhone / Motor" />
           </div>
           <div className="field-row">
             <div className="field">
-              <label>Harga Beli</label>
+              <label>{t('buyPrice')}</label>
               <NumInput value={form.buy_price} onChange={v => set('buy_price', v)} placeholder="0" />
             </div>
             <div className="field">
-              <label>Tanggal Beli</label>
+              <label>{t('buyDate')}</label>
               <input type="date" value={form.buy_date} onChange={e => set('buy_date', e.target.value)} />
             </div>
           </div>
           <div className="field">
-            <label>Catatan</label>
-            <input value={form.catatan || ''} onChange={e => set('catatan', e.target.value)} placeholder="Opsional" />
+            <label>{t('notes')}</label>
+            <input value={form.catatan || ''} onChange={e => set('catatan', e.target.value)} placeholder={t('optional')} />
           </div>
         </Modal>
       )}
@@ -133,17 +134,17 @@ export default function PhysicalTable({ data, uid, onRefresh, showToast }) {
           <table>
             <thead>
               <tr>
-                <SortTh k="asset_name">Nama Aset</SortTh>
-                <SortTh k="buy_price" className="num">Harga Beli</SortTh>
-                <SortTh k="buy_date">Tgl Beli</SortTh>
-                <th>Umur</th>
-                <SortTh k="_perBulan" className="num">Harga/Bulan</SortTh>
+                <SortTh k="asset_name">{t('assetName')}</SortTh>
+                <SortTh k="buy_price" className="num">{t('buyPrice')}</SortTh>
+                <SortTh k="buy_date">{t('buyDate')}</SortTh>
+                <th>{t('age')}</th>
+                <SortTh k="_perBulan" className="num">{t('pricePerMonth')}</SortTh>
                 <th></th>
               </tr>
             </thead>
             <tbody>
               {sorted.length === 0 && (
-                <tr><td colSpan={6} className="empty-state">Belum ada data</td></tr>
+                <tr><td colSpan={6} className="empty-state">{t('noData')}</td></tr>
               )}
               {sorted.map(r => {
                 const months = calcMonths(r.buy_date)
@@ -161,8 +162,8 @@ export default function PhysicalTable({ data, uid, onRefresh, showToast }) {
                     </td>
                     <td className="actions">
                       <div className="row-actions">
-                        <button className="btn-icon" onClick={() => openEdit(r)} title="Edit">✏</button>
-                        <button className="btn-icon del" onClick={() => setConfirmItem(r)} title="Hapus">×</button>
+                        <button className="btn-icon" onClick={() => openEdit(r)} title={t('edit')}>✏</button>
+                        <button className="btn-icon del" onClick={() => setConfirmItem(r)} title={t('delete')}>×</button>
                       </div>
                     </td>
                   </tr>
@@ -171,7 +172,7 @@ export default function PhysicalTable({ data, uid, onRefresh, showToast }) {
             </tbody>
             <tfoot>
               <tr>
-                <td><strong>Total ({data.length} item)</strong></td>
+                <td><strong>{t('total')} ({data.length} {t('items')})</strong></td>
                 <td className="num"><strong>{fmt(total)}</strong></td>
                 <td colSpan={4} />
               </tr>
@@ -180,10 +181,10 @@ export default function PhysicalTable({ data, uid, onRefresh, showToast }) {
         </div>
 
         <div className="physical-rank-panel">
-          <div className="physical-rank-title">Ranking Efisiensi</div>
-          <div className="physical-rank-sub">Harga/bulan terendah = paling efisien</div>
+          <div className="physical-rank-title">{t('efficiencyRank')}</div>
+          <div className="physical-rank-sub">{t('lowestCostSub')}</div>
           {top10.length === 0 ? (
-            <div className="physical-rank-empty">Tambah tanggal beli<br />untuk melihat ranking</div>
+            <div className="physical-rank-empty">{t('addDateHint').split('\n')[0]}<br />{t('addDateHint').split('\n')[1]}</div>
           ) : (
             top10.map((item, i) => (
               <div key={item.id} className="physical-rank-item">

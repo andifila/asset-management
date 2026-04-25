@@ -7,6 +7,7 @@ import BinanceTable from '../components/BinanceTable'
 import PhysicalTable from '../components/PhysicalTable'
 import LiquidTable from '../components/LiquidTable'
 import Toast from '../components/Toast'
+import { useLang } from '../lib/LangContext'
 
 
 const TAB_ICONS = { summary: '◈', bibit: '↗', binance: '◆', fisik: '⬡', kas: '◎', custom: '○' }
@@ -41,6 +42,7 @@ export default function Dashboard({ session }) {
   }, [])
 
   const uid = session.user.id
+  const { lang, toggle: toggleLang, t } = useLang()
 
   const fetchTabs = useCallback(async () => {
     const { data: rows, error } = await supabase
@@ -156,7 +158,12 @@ export default function Dashboard({ session }) {
         <div className="topbar-right">
           {avatar && <img src={avatar} className="avatar" alt="avatar" referrerPolicy="no-referrer" />}
           <span className="topbar-name">{name}</span>
-          <button className="btn-logout" onClick={logout}>Keluar</button>
+          <button className="btn-lang" onClick={toggleLang}>
+            <span className={lang === 'id' ? 'lang-active' : ''}>ID</span>
+            <span className="lang-sep">·</span>
+            <span className={lang === 'en' ? 'lang-active' : ''}>EN</span>
+          </button>
+          <button className="btn-logout" onClick={logout}>{t('logout')}</button>
         </div>
       </header>
 
@@ -227,7 +234,7 @@ export default function Dashboard({ session }) {
 
       <main className="main-content">
         {loading || !tabsLoaded
-          ? <div className="loading-state">Memuat data...</div>
+          ? <div className="loading-state">{t('loading')}</div>
           : renderContent()
         }
       </main>

@@ -5,12 +5,13 @@ import { fmt, fmtPnl } from '../lib/format'
 import Modal from './Modal'
 import ConfirmModal from './ConfirmModal'
 import NumInput from './NumInput'
+import { useLang } from '../lib/LangContext'
 
 const EMPTY = { nama_aset: '', kategori: 'pasar_uang', saldo: '', aktual: '', catatan: '' }
-const KAT_LABEL = { pasar_uang: 'Pasar Uang', obligasi: 'Obligasi', saham: 'Saham' }
 const KAT_CLASS = { pasar_uang: 'badge-teal', obligasi: 'badge-blue', saham: 'badge-amber' }
 
 export default function BibitTable({ data, uid, onRefresh, showToast }) {
+  const { t } = useLang()
   const [modal, setModal]       = useState(false)
   const [form, setForm]         = useState(EMPTY)
   const [editId, setEditId]     = useState(null)
@@ -23,6 +24,20 @@ export default function BibitTable({ data, uid, onRefresh, showToast }) {
 
   const tSaldo  = data.reduce((s, r) => s + Number(r.saldo), 0)
   const tAktual = data.reduce((s, r) => s + Number(r.aktual), 0)
+
+  // Profit ranking: top 3 by PnL%
+  const profitRanks = (() => {
+    const map = {}
+    ;[...data]
+      .sort((a, b) => {
+        const pA = Number(a.saldo) > 0 ? (Number(a.aktual) - Number(a.saldo)) / Number(a.saldo) : -Infinity
+        const pB = Number(b.saldo) > 0 ? (Number(b.aktual) - Number(b.saldo)) / Number(b.saldo) : -Infinity
+        return pB - pA
+      })
+      .slice(0, 3)
+      .forEach((r, i) => { map[r.id] = i + 1 })
+    return map
+  })()
 
   const toggleSort = (key) => {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -54,9 +69,9 @@ export default function BibitTable({ data, uid, onRefresh, showToast }) {
   const close    = () => { setModal(false); setEditId(null); setSaveErr(null) }
 
   const save = async () => {
-    if (!form.nama_aset.trim()) { setSaveErr('Nama aset tidak boleh kosong'); return }
-    if (Number(form.saldo) <= 0) { setSaveErr('Saldo modal harus lebih dari 0'); return }
-    if (Number(form.aktual) < 0) { setSaveErr('Nilai aktual tidak boleh negatif'); return }
+    if (!form.nama_aset.trim()) { setSaveErr(t('errName')); return }
+    if (Number(form.saldo) <= 0) { setSaveErr(t('errBalance')); return }
+    if (Number(form.aktual) < 0) { setSaveErr(t('errActual')); return }
     setSaving(true); setSaveErr(null)
     const p = { nama_aset: form.nama_aset.trim(), kategori: form.kategori, saldo: Number(form.saldo), aktual: Number(form.aktual), catatan: form.catatan, user_id: uid }
     const { error } = editId
@@ -65,48 +80,48 @@ export default function BibitTable({ data, uid, onRefresh, showToast }) {
     setSaving(false)
     if (error) { setSaveErr(error.message); return }
     close(); onRefresh()
-    showToast(editId ? 'Aset berhasil diperbarui' : 'Aset berhasil ditambahkan')
+    showToast(editId ? t('toastUpdated') : t('toastAdded'))
   }
 
   const del = async () => {
     setDeleting(true)
     await supabase.from('bibit_assets').delete().eq('id', confirmItem.id)
     setDeleting(false); setConfirmItem(null)
-    showToast('Aset berhasil dihapus')
-    onRefresh()
+    showToast(t('toastDeleted')); onRefresh()
   }
 
+  const rankCls = (r) => { const n = profitRanks[r]; return n === 1 ? 'rank-1' : n === 2 ? 'rank-2' : 'rank-3' }
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   return (
     <div>
       <div className="section-header">
-        <h2 className="section-title">BIBIT — Reksa Dana & Obligasi</h2>
-        <button className="btn-add" onClick={openAdd}>+ Tambah</button>
+        <h2 className="section-title">{t('bibitTitle')}</h2>
+        <button className="btn-add" onClick={openAdd}>{t('add')}</button>
       </div>
 
       {modal && (
-        <Modal title={editId ? 'Edit Aset BIBIT' : 'Tambah Aset BIBIT'} onClose={close} onSave={save} saving={saving} error={saveErr}>
-          <div className="field"><label>Nama Aset</label>
+        <Modal title={editId ? t('editBibit') : t('addBibit')} onClose={close} onSave={save} saving={saving} error={saveErr}>
+          <div className="field"><label>{t('assetName')}</label>
             <input value={form.nama_aset} onChange={e => set('nama_aset', e.target.value)} placeholder="PASAR UANG / OBLIGASI / $GOTO" autoFocus />
           </div>
-          <div className="field"><label>Kategori</label>
+          <div className="field"><label>{t('category')}</label>
             <select value={form.kategori} onChange={e => set('kategori', e.target.value)}>
-              <option value="pasar_uang">Pasar Uang</option>
-              <option value="obligasi">Obligasi</option>
-              <option value="saham">Saham</option>
+              <option value="pasar_uang">{t('pasar_uang')}</option>
+              <option value="obligasi">{t('obligasi')}</option>
+              <option value="saham">{t('saham')}</option>
             </select>
           </div>
           <div className="field-row">
-            <div className="field"><label>Saldo (Modal)</label>
+            <div className="field"><label>{t('balanceLabel')}</label>
               <NumInput value={form.saldo} onChange={v => set('saldo', v)} placeholder="0" />
             </div>
-            <div className="field"><label>Aktual (Sekarang)</label>
+            <div className="field"><label>{t('actualLabel')}</label>
               <NumInput value={form.aktual} onChange={v => set('aktual', v)} placeholder="0" />
             </div>
           </div>
-          <div className="field"><label>Catatan</label>
-            <input value={form.catatan || ''} onChange={e => set('catatan', e.target.value)} placeholder="Opsional" />
+          <div className="field"><label>{t('notes')}</label>
+            <input value={form.catatan || ''} onChange={e => set('catatan', e.target.value)} placeholder={t('optional')} />
           </div>
         </Modal>
       )}
@@ -118,30 +133,36 @@ export default function BibitTable({ data, uid, onRefresh, showToast }) {
       <div className="table-wrap">
         <table>
           <thead><tr>
-            <SortTh k="nama_aset">Nama Aset</SortTh>
-            <SortTh k="kategori">Kategori</SortTh>
-            <SortTh k="saldo" className="num">Saldo</SortTh>
-            <SortTh k="aktual" className="num">Aktual</SortTh>
-            <SortTh k="_pnl" className="num">PnL</SortTh>
+            <SortTh k="nama_aset">{t('assetName')}</SortTh>
+            <SortTh k="kategori">{t('category')}</SortTh>
+            <SortTh k="saldo" className="num">{t('balance')}</SortTh>
+            <SortTh k="aktual" className="num">{t('actual')}</SortTh>
+            <SortTh k="_pnl" className="num">{t('pnl')}</SortTh>
             <th></th>
           </tr></thead>
           <tbody>
             {sorted.length === 0 && (
-              <tr><td colSpan={6} className="empty-state">Belum ada data</td></tr>
+              <tr><td colSpan={6} className="empty-state">{t('noData')}</td></tr>
             )}
             {sorted.map(r => {
               const pnl = Number(r.aktual) - Number(r.saldo)
+              const rank = profitRanks[r.id]
               return (
                 <tr key={r.id}>
-                  <td>{r.nama_aset}</td>
-                  <td><span className={`badge ${KAT_CLASS[r.kategori] || 'badge-gray'}`}>{KAT_LABEL[r.kategori] || r.kategori}</span></td>
+                  <td>
+                    <div className="cell-with-rank">
+                      {rank && <span className={`rank-badge ${rankCls(r.id)}`}>#{rank}</span>}
+                      {r.nama_aset}
+                    </div>
+                  </td>
+                  <td><span className={`badge ${KAT_CLASS[r.kategori] || 'badge-gray'}`}>{t(r.kategori) || r.kategori}</span></td>
                   <td className="num">{fmt(r.saldo)}</td>
                   <td className="num">{fmt(r.aktual)}</td>
                   <td className={`num ${pnl >= 0 ? 'pos' : 'neg'}`}>{fmtPnl(pnl)}</td>
                   <td className="actions">
                     <div className="row-actions">
-                      <button className="btn-icon" onClick={() => openEdit(r)} title="Edit">✏</button>
-                      <button className="btn-icon del" onClick={() => setConfirmItem(r)} title="Hapus">×</button>
+                      <button className="btn-icon" onClick={() => openEdit(r)} title={t('edit')}>✏</button>
+                      <button className="btn-icon del" onClick={() => setConfirmItem(r)} title={t('delete')}>×</button>
                     </div>
                   </td>
                 </tr>
@@ -149,7 +170,7 @@ export default function BibitTable({ data, uid, onRefresh, showToast }) {
             })}
           </tbody>
           <tfoot><tr>
-            <td colSpan={2}><strong>Total</strong></td>
+            <td colSpan={2}><strong>{t('total')}</strong></td>
             <td className="num"><strong>{fmt(tSaldo)}</strong></td>
             <td className="num"><strong>{fmt(tAktual)}</strong></td>
             <td className={`num ${tAktual >= tSaldo ? 'pos' : 'neg'}`}><strong>{fmtPnl(tAktual - tSaldo)}</strong></td>

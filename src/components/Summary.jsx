@@ -3,11 +3,13 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { fmt, fmtPnl } from '../lib/format'
 import NumInput from './NumInput'
+import { useLang } from '../lib/LangContext'
 
 export default function Summary({ data, uid, onRefresh, showToast }) {
+  const { t } = useLang()
   const { bibit, binance, fisik, kas, jht, target } = data
   const [editTarget, setEditTarget] = useState(false)
-  const [newTarget, setNewTarget] = useState(target)
+  const [newTarget, setNewTarget]   = useState(target)
 
   const tBibitSaldo  = bibit.reduce((s, r) => s + Number(r.saldo), 0)
   const tBibitAktual = bibit.reduce((s, r) => s + Number(r.aktual), 0)
@@ -20,8 +22,7 @@ export default function Summary({ data, uid, onRefresh, showToast }) {
   const tLiquid = tKas + tJHT
   const tInvest = tBibitAktual + tBinAktual
   const tAsset  = tLiquid + tInvest + tFisik
-
-  const prog = target > 0 ? Math.min((tAsset / target) * 100, 100) : 0
+  const prog    = target > 0 ? Math.min((tAsset / target) * 100, 100) : 0
 
   const saveTarget = async () => {
     const { data: ex } = await supabase.from('financial_goals').select('id').eq('user_id', uid).maybeSingle()
@@ -29,11 +30,14 @@ export default function Summary({ data, uid, onRefresh, showToast }) {
     else     await supabase.from('financial_goals').insert({ user_id: uid, target_amount: newTarget })
     setEditTarget(false)
     onRefresh()
-    showToast('Target berhasil diperbarui')
+    showToast(t('toastUpdated'))
   }
 
+  const bibitPnl  = tBibitAktual - tBibitSaldo
+  const binancePnl = tBinAktual - tBinSaldo
+
   const liquidMetrics = [
-    { label: 'Kas Likuid', value: fmt(tKas), sub: `${kas.length} pos` },
+    { label: t('kas_likuid') || 'Kas Likuid', value: fmt(tKas), sub: `${kas.length} ${t('positions')}` },
     { label: 'JHT', value: fmt(tJHT), sub: 'BPJS Ketenagakerjaan' },
   ]
 
@@ -41,16 +45,14 @@ export default function Summary({ data, uid, onRefresh, showToast }) {
     {
       label: 'BIBIT',
       value: fmt(tBibitAktual),
-      sub: fmtPnl(tBibitAktual - tBibitSaldo),
-      subClass: tBibitAktual >= tBibitSaldo ? 'pos' : 'neg',
-      icon: tBibitAktual >= tBibitSaldo ? '▲' : '▼',
+      sub: fmtPnl(bibitPnl),
+      profit: bibitPnl >= 0,
     },
     {
       label: 'Binance',
       value: fmt(tBinAktual),
-      sub: fmtPnl(tBinAktual - tBinSaldo),
-      subClass: tBinAktual >= tBinSaldo ? 'pos' : 'neg',
-      icon: tBinAktual >= tBinSaldo ? '▲' : '▼',
+      sub: fmtPnl(binancePnl),
+      profit: binancePnl >= 0,
     },
   ]
 
@@ -59,35 +61,45 @@ export default function Summary({ data, uid, onRefresh, showToast }) {
     { label: 'Binance', val: tBinAktual,   color: 'var(--amber)',  group: 'invest' },
     { label: 'Kas',     val: tKas,         color: 'var(--green)',  group: 'liquid' },
     { label: 'JHT',     val: tJHT,         color: 'var(--purple)', group: 'liquid' },
-    { label: 'Fisik',   val: tFisik,       color: 'var(--muted)',  group: 'fisik'  },
+    { label: t('physical'), val: tFisik,   color: 'var(--muted)',  group: 'fisik'  },
   ]
+
+  const AllocSection = ({ group }) => allocs.filter(a => a.group === group).map(a => {
+    const pct = tAsset > 0 ? (a.val / tAsset) * 100 : 0
+    return (
+      <div key={a.label} className="alloc-row">
+        <div className="alloc-name"><span className="alloc-dot" style={{ background: a.color }} />{a.label}</div>
+        <div className="alloc-track"><div className="alloc-bar" style={{ width: `${pct}%`, background: a.color }} /></div>
+        <span className="alloc-pct">{pct.toFixed(1)}%</span>
+        <span className="alloc-val">{fmt(a.val)}</span>
+      </div>
+    )
+  })
 
   return (
     <div>
-      {/* Header + target */}
       <div className="section-header">
-        <h2 className="section-title">Ringkasan Portofolio</h2>
+        <h2 className="section-title">{t('portfolioSummary')}</h2>
         <div className="target-row">
           {editTarget ? (
             <>
-              <span className="label-sm">Target:</span>
+              <span className="label-sm">{t('target')}:</span>
               <NumInput value={newTarget} onChange={v => setNewTarget(v)} className="target-input" />
-              <button className="btn-xs btn-primary" onClick={saveTarget}>Simpan</button>
-              <button className="btn-xs" onClick={() => setEditTarget(false)}>Batal</button>
+              <button className="btn-xs btn-primary" onClick={saveTarget}>{t('save')}</button>
+              <button className="btn-xs" onClick={() => setEditTarget(false)}>{t('cancel')}</button>
             </>
           ) : (
             <>
-              <span className="label-sm">Target: <strong>{fmt(target)}</strong></span>
-              <button className="btn-xs" onClick={() => { setNewTarget(target); setEditTarget(true) }}>Edit</button>
+              <span className="label-sm">{t('target')}: <strong>{fmt(target)}</strong></span>
+              <button className="btn-xs" onClick={() => { setNewTarget(target); setEditTarget(true) }}>{t('edit')}</button>
             </>
           )}
         </div>
       </div>
 
-      {/* Total aset + progress */}
       <div className="summary-total-card">
         <div className="summary-total-left">
-          <div className="summary-total-label">Total Aset</div>
+          <div className="summary-total-label">{t('totalAsset')}</div>
           <div className="summary-total-value">{fmt(tAsset)}</div>
         </div>
         <div className="summary-total-right">
@@ -97,7 +109,7 @@ export default function Summary({ data, uid, onRefresh, showToast }) {
             </div>
             <span className="progress-label">{prog.toFixed(2)}%</span>
           </div>
-          <div className="summary-total-sub">dari target {fmt(target)}</div>
+          <div className="summary-total-sub">{t('fromTarget')} {fmt(target)}</div>
         </div>
       </div>
 
@@ -106,7 +118,7 @@ export default function Summary({ data, uid, onRefresh, showToast }) {
         <div className="metrics-group-header">
           <span className="metrics-group-label">
             <span className="metrics-group-dot" style={{ background: 'var(--green)' }} />
-            Aset Liquid
+            {t('liquidAsset')}
           </span>
           <span className="metrics-group-total">{fmt(tLiquid)}</span>
         </div>
@@ -115,7 +127,7 @@ export default function Summary({ data, uid, onRefresh, showToast }) {
             <div key={i} className="metric-card">
               <div className="metric-label">{m.label}</div>
               <div className="metric-value">{m.value}</div>
-              <div className={`metric-sub ${m.subClass || ''}`}>{m.sub}</div>
+              <div className="metric-sub">{m.sub}</div>
             </div>
           ))}
         </div>
@@ -126,7 +138,7 @@ export default function Summary({ data, uid, onRefresh, showToast }) {
         <div className="metrics-group-header">
           <span className="metrics-group-label">
             <span className="metrics-group-dot" style={{ background: 'var(--blue)' }} />
-            Aset Tidak Liquid
+            {t('nonLiquidAsset')}
           </span>
           <span className="metrics-group-total">{fmt(tInvest)}</span>
         </div>
@@ -135,8 +147,8 @@ export default function Summary({ data, uid, onRefresh, showToast }) {
             <div key={i} className="metric-card">
               <div className="metric-label">{m.label}</div>
               <div className="metric-value">{m.value}</div>
-              <div className={`metric-sub ${m.subClass || ''}`}>
-                {m.icon && <span className="metric-pnl-icon">{m.icon}</span>}
+              <div className={`metric-sub metric-pnl ${m.profit ? 'pos' : 'neg'}`}>
+                <span className="metric-pnl-arrow">{m.profit ? '▲' : '▼'}</span>
                 {m.sub}
               </div>
             </div>
@@ -149,80 +161,30 @@ export default function Summary({ data, uid, onRefresh, showToast }) {
         <div className="metrics-group-header">
           <span className="metrics-group-label">
             <span className="metrics-group-dot" style={{ background: 'var(--muted)' }} />
-            Aset Fisik
+            {t('physicalAsset')}
           </span>
           <span className="metrics-group-total">{fmt(tFisik)}</span>
         </div>
         <div className="metrics-grid">
           <div className="metric-card metric-fisik">
-            <div className="metric-label">Total Nilai Beli</div>
+            <div className="metric-label">{t('totalBuyPrice')}</div>
             <div className="metric-value">{fmt(tFisik)}</div>
-            <div className="metric-sub">{fisik.length} item</div>
+            <div className="metric-sub">{fisik.length} {t('items')}</div>
           </div>
         </div>
       </div>
 
       {/* Alokasi */}
       <div className="alloc-card">
-        <h3 className="alloc-title">Alokasi Aset</h3>
-
-        <div className="alloc-group-label">Tidak Liquid</div>
-        {allocs.filter(a => a.group === 'invest').map(a => {
-          const pct = tAsset > 0 ? (a.val / tAsset) * 100 : 0
-          return (
-            <div key={a.label} className="alloc-row">
-              <div className="alloc-name">
-                <span className="alloc-dot" style={{ background: a.color }} />
-                {a.label}
-              </div>
-              <div className="alloc-track">
-                <div className="alloc-bar" style={{ width: `${pct}%`, background: a.color }} />
-              </div>
-              <span className="alloc-pct">{pct.toFixed(1)}%</span>
-              <span className="alloc-val">{fmt(a.val)}</span>
-            </div>
-          )
-        })}
-
+        <h3 className="alloc-title">{t('assetAllocation')}</h3>
+        <div className="alloc-group-label">{t('nonLiquid')}</div>
+        <AllocSection group="invest" />
         <div className="alloc-divider" />
-
-        <div className="alloc-group-label">Liquid</div>
-        {allocs.filter(a => a.group === 'liquid').map(a => {
-          const pct = tAsset > 0 ? (a.val / tAsset) * 100 : 0
-          return (
-            <div key={a.label} className="alloc-row">
-              <div className="alloc-name">
-                <span className="alloc-dot" style={{ background: a.color }} />
-                {a.label}
-              </div>
-              <div className="alloc-track">
-                <div className="alloc-bar" style={{ width: `${pct}%`, background: a.color }} />
-              </div>
-              <span className="alloc-pct">{pct.toFixed(1)}%</span>
-              <span className="alloc-val">{fmt(a.val)}</span>
-            </div>
-          )
-        })}
-
+        <div className="alloc-group-label">{t('liquid')}</div>
+        <AllocSection group="liquid" />
         <div className="alloc-divider" />
-
-        <div className="alloc-group-label">Fisik</div>
-        {allocs.filter(a => a.group === 'fisik').map(a => {
-          const pct = tAsset > 0 ? (a.val / tAsset) * 100 : 0
-          return (
-            <div key={a.label} className="alloc-row">
-              <div className="alloc-name">
-                <span className="alloc-dot" style={{ background: a.color }} />
-                {a.label}
-              </div>
-              <div className="alloc-track">
-                <div className="alloc-bar" style={{ width: `${pct}%`, background: a.color }} />
-              </div>
-              <span className="alloc-pct">{pct.toFixed(1)}%</span>
-              <span className="alloc-val">{fmt(a.val)}</span>
-            </div>
-          )
-        })}
+        <div className="alloc-group-label">{t('physical')}</div>
+        <AllocSection group="fisik" />
       </div>
     </div>
   )

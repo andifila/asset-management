@@ -548,6 +548,23 @@ th.sortable.sorted .sort-icon { opacity: 1; color: var(--blue); }
 
 /* PNL ICON IN METRIC CARD */
 .metric-pnl-icon { font-size: 0.6rem; margin-right: 2px; vertical-align: middle; }
+.metric-pnl.pos { color: var(--green); }
+.metric-pnl.neg { color: var(--red); }
+
+/* RANK BADGE IN TABLE CELL */
+.cell-with-rank { display: flex; align-items: center; gap: 6px; }
+
+/* LANGUAGE TOGGLE */
+.btn-lang {
+  background: var(--bg3); border: 1px solid var(--border2);
+  border-radius: var(--radius); color: var(--muted);
+  padding: 0.3rem 0.6rem; font-size: 0.75rem; font-weight: 600;
+  cursor: pointer; letter-spacing: 0.03em; display: flex; align-items: center; gap: 3px;
+  transition: border-color 0.15s;
+}
+.btn-lang:hover { border-color: var(--blue); color: var(--text); }
+.lang-active { color: var(--blue); }
+.lang-sep { color: var(--border2); }
 
 /* LIQUID SUMMARY ROW */
 .liquid-summary-row {
