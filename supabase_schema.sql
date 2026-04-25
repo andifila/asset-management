@@ -62,6 +62,15 @@ CREATE TABLE IF NOT EXISTS financial_goals (
   updated_at     TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS tab_configs (
+  id         UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id    UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  label      TEXT NOT NULL,
+  type       TEXT NOT NULL DEFAULT 'custom',
+  position   INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- RLS
 ALTER TABLE bibit_assets    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE binance_assets  ENABLE ROW LEVEL SECURITY;
@@ -69,6 +78,7 @@ ALTER TABLE physical_assets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE liquid_assets   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE jht_assets      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE financial_goals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tab_configs     ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "own" ON bibit_assets    FOR ALL USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);
 CREATE POLICY "own" ON binance_assets  FOR ALL USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);
@@ -76,6 +86,7 @@ CREATE POLICY "own" ON physical_assets FOR ALL USING (auth.uid()=user_id) WITH C
 CREATE POLICY "own" ON liquid_assets   FOR ALL USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);
 CREATE POLICY "own" ON jht_assets      FOR ALL USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);
 CREATE POLICY "own" ON financial_goals FOR ALL USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);
+CREATE POLICY "own" ON tab_configs     FOR ALL USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);
 
 -- Auto-update timestamp
 CREATE OR REPLACE FUNCTION update_updated_at()

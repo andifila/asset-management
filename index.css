@@ -260,55 +260,6 @@ tfoot td { border-top: 1px solid var(--border2); background: var(--bg3); }
 }
 .jht-input:focus { outline: none; border-color: var(--blue); }
 
-/* KELOLA TAB BUTTON */
-.btn-manage-tabs {
-  font-size: 0.78rem; padding: 0.3rem 0.75rem;
-  background: rgba(139,125,232,0.12); border: 1px solid rgba(139,125,232,0.3);
-  border-radius: var(--radius); color: var(--purple); cursor: pointer;
-  transition: all 0.2s; font-family: 'Sora', sans-serif;
-}
-.btn-manage-tabs:hover { background: rgba(139,125,232,0.2); }
-
-/* MANAGE TABS MODAL */
-.manage-tabs-box { max-width: 520px; }
-.manage-tabs-hint { font-size: 0.78rem; color: var(--muted); margin-bottom: 12px; }
-
-.tabs-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
-.tab-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 8px 10px; background: var(--bg3);
-  border: 1px solid var(--border); border-radius: var(--radius);
-}
-.tab-item-order { display: flex; flex-direction: column; gap: 1px; }
-.tab-item-order .btn-icon { padding: 0.1rem 0.3rem; font-size: 0.7rem; line-height: 1.2; }
-.tab-item-order .btn-icon:disabled { opacity: 0.25; cursor: default; }
-.tab-item-label { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.tab-item-name { font-size: 0.85rem; color: var(--text); cursor: default; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tab-type-badge { font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
-.tab-rename-input {
-  width: 100%; padding: 0.2rem 0.5rem; font-size: 0.82rem;
-  background: var(--bg4); border: 1px solid var(--blue);
-  border-radius: 4px; color: var(--text); font-family: 'Sora', sans-serif;
-}
-.tab-rename-input:focus { outline: none; }
-.tab-item-actions { display: flex; gap: 2px; flex-shrink: 0; }
-
-.add-tab-form {
-  margin-top: 10px; padding: 10px 12px;
-  background: var(--bg3); border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
-.add-tab-actions { display: flex; gap: 8px; margin-top: 10px; }
-.add-tab-btn { margin-top: 10px; }
-
-/* CUSTOM TAB PLACEHOLDER */
-.custom-tab-empty {
-  text-align: center; padding: 4rem 2rem; color: var(--muted);
-}
-.custom-tab-icon { font-size: 2.5rem; color: var(--purple); margin-bottom: 1rem; opacity: 0.4; }
-.custom-tab-empty p { font-size: 0.85rem; margin-bottom: 4px; }
-.custom-tab-empty p strong { color: var(--text); }
-
 @media (max-width: 600px) {
   .field-row { grid-template-columns: 1fr; }
   .alloc-row { grid-template-columns: 60px 1fr 40px; }
