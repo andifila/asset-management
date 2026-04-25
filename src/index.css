@@ -465,6 +465,26 @@ tbody tr:hover .actions .row-actions { opacity: 1; }
   color: var(--muted); margin-top: 4px;
 }
 
+/* PHYSICAL ASSET LAYOUT */
+.physical-layout { display: flex; gap: 16px; align-items: flex-start; }
+.physical-layout .table-wrap { flex: 1; min-width: 0; margin-bottom: 0; }
+.physical-rank-panel {
+  width: 210px; flex-shrink: 0;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 1rem;
+}
+.physical-rank-title {
+  font-size: 0.63rem; text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--muted); font-weight: 600; margin-bottom: 2px;
+}
+.physical-rank-sub { font-size: 0.65rem; color: var(--muted); opacity: 0.6; margin-bottom: 10px; }
+.physical-rank-item { display: flex; align-items: center; gap: 9px; padding: 7px 0; border-bottom: 1px solid var(--border); }
+.physical-rank-item:last-child { border-bottom: none; padding-bottom: 0; }
+.physical-rank-info { flex: 1; min-width: 0; }
+.physical-rank-name { font-size: 0.78rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.physical-rank-val { font-size: 0.7rem; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 1px; }
+.physical-rank-empty { font-size: 0.75rem; color: var(--muted); text-align: center; padding: 1.5rem 0; line-height: 1.6; }
+
 /* HARGA PER BULAN */
 .per-bulan { font-family: 'DM Mono', monospace; font-size: 0.78rem; }
 .per-bulan-unit { font-size: 0.65rem; color: var(--muted); margin-left: 1px; }
@@ -504,6 +524,12 @@ th.sortable.sorted .sort-icon { opacity: 1; color: var(--blue); }
 .custom-tab-icon { font-size: 2rem; color: var(--purple); margin-bottom: 1rem; opacity: 0.35; }
 .custom-tab-empty p { font-size: 0.85rem; margin-bottom: 4px; }
 .custom-tab-empty p strong { color: var(--text); }
+
+@media (max-width: 768px) {
+  .physical-layout { flex-direction: column; }
+  .physical-layout .table-wrap { margin-bottom: 1rem; }
+  .physical-rank-panel { width: 100%; }
+}
 
 @media (max-width: 600px) {
   .field-row { grid-template-columns: 1fr; }

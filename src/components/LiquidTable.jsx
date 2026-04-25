@@ -64,11 +64,9 @@ export default function LiquidTable({ data, jht, uid, onRefresh }) {
       kategori: form.kategori,
       user_id: uid,
     }
-    console.log('[save] payload:', p)
     const result = editId
       ? await supabase.from('liquid_assets').update(p).eq('id', editId)
       : await supabase.from('liquid_assets').insert(p)
-    console.log('[save] result:', result)
     setSaving(false)
     if (result.error) { setSaveErr(result.error.message); return }
     close(); onRefresh()
