@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import { fmt, fmtPnl } from '../lib/format'
 import NumInput from './NumInput'
 
-export default function Summary({ data, uid, onRefresh }) {
+export default function Summary({ data, uid, onRefresh, showToast }) {
   const { bibit, binance, fisik, kas, jht, target } = data
   const [editTarget, setEditTarget] = useState(false)
   const [newTarget, setNewTarget] = useState(target)
@@ -29,6 +29,7 @@ export default function Summary({ data, uid, onRefresh }) {
     else     await supabase.from('financial_goals').insert({ user_id: uid, target_amount: newTarget })
     setEditTarget(false)
     onRefresh()
+    showToast('Target berhasil diperbarui')
   }
 
   const liquidMetrics = [

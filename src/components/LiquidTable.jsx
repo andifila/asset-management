@@ -3,31 +3,35 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { fmt } from '../lib/format'
 import Modal from './Modal'
+import ConfirmModal from './ConfirmModal'
 import NumInput from './NumInput'
 
 const KATEGORI = [
-  { value: 'main_pocket', label: 'Main Pocket', cls: 'badge-blue' },
+  { value: 'main_pocket',  label: 'Main Pocket',  cls: 'badge-blue' },
   { value: 'dana_darurat', label: 'Dana Darurat', cls: 'badge-amber' },
   { value: 'lainnya',      label: 'Lainnya',      cls: 'badge-gray' },
 ]
-
 const KAT_MAP = Object.fromEntries(KATEGORI.map(k => [k.value, k]))
-
 const EMPTY = { nama: '', jumlah: '', kategori: 'main_pocket' }
 
-export default function LiquidTable({ data, jht, uid, onRefresh }) {
-  const [modal, setModal]     = useState(false)
-  const [form, setForm]       = useState(EMPTY)
-  const [editId, setEditId]   = useState(null)
-  const [saving, setSaving]   = useState(false)
-  const [saveErr, setSaveErr] = useState(null)
-  const [jhtVal, setJhtVal]   = useState(jht)
+export default function LiquidTable({ data, jht, uid, onRefresh, showToast }) {
+  const [modal, setModal]       = useState(false)
+  const [form, setForm]         = useState(EMPTY)
+  const [editId, setEditId]     = useState(null)
+  const [saving, setSaving]     = useState(false)
+  const [saveErr, setSaveErr]   = useState(null)
+  const [confirmItem, setConfirmItem] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+  const [jhtVal, setJhtVal]     = useState(jht)
   const [savingJHT, setSavingJHT] = useState(false)
-  const [jhtErr, setJhtErr]   = useState(null)
-  const [sortKey, setSortKey] = useState(null)
-  const [sortDir, setSortDir] = useState('asc')
+  const [jhtErr, setJhtErr]     = useState(null)
+  const [sortKey, setSortKey]   = useState(null)
+  const [sortDir, setSortDir]   = useState('asc')
 
-  const total = data.reduce((s, r) => s + Number(r.jumlah), 0)
+  const total        = data.reduce((s, r) => s + Number(r.jumlah), 0)
+  const tMainPocket  = data.filter(r => r.kategori === 'main_pocket').reduce((s, r) => s + Number(r.jumlah), 0)
+  const tDanaDarurat = data.filter(r => r.kategori === 'dana_darurat').reduce((s, r) => s + Number(r.jumlah), 0)
+  const tLainnya     = data.filter(r => !r.kategori || r.kategori === 'lainnya').reduce((s, r) => s + Number(r.jumlah), 0)
 
   const toggleSort = (key) => {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -48,37 +52,34 @@ export default function LiquidTable({ data, jht, uid, onRefresh }) {
     </th>
   )
 
-  const tMainPocket  = data.filter(r => r.kategori === 'main_pocket').reduce((s, r) => s + Number(r.jumlah), 0)
-  const tDanaDarurat = data.filter(r => r.kategori === 'dana_darurat').reduce((s, r) => s + Number(r.jumlah), 0)
-  const tLainnya     = data.filter(r => !r.kategori || r.kategori === 'lainnya').reduce((s, r) => s + Number(r.jumlah), 0)
-
   const openAdd  = () => { setForm(EMPTY); setEditId(null); setSaveErr(null); setModal(true) }
   const openEdit = (r) => { setForm({ ...r, kategori: r.kategori || 'lainnya' }); setEditId(r.id); setSaveErr(null); setModal(true) }
   const close    = () => { setModal(false); setEditId(null); setSaveErr(null) }
 
   const save = async () => {
+    if (!form.nama.trim()) { setSaveErr('Nama tidak boleh kosong'); return }
+    if (Number(form.jumlah) <= 0) { setSaveErr('Jumlah harus lebih dari 0'); return }
     setSaving(true); setSaveErr(null)
-    const p = {
-      nama: form.nama,
-      jumlah: Number(form.jumlah),
-      kategori: form.kategori,
-      user_id: uid,
-    }
+    const p = { nama: form.nama.trim(), jumlah: Number(form.jumlah), kategori: form.kategori, user_id: uid }
     const result = editId
       ? await supabase.from('liquid_assets').update(p).eq('id', editId)
       : await supabase.from('liquid_assets').insert(p)
     setSaving(false)
     if (result.error) { setSaveErr(result.error.message); return }
     close(); onRefresh()
+    showToast(editId ? 'Entri berhasil diperbarui' : 'Entri berhasil ditambahkan')
   }
 
-  const del = async (id) => {
-    if (!confirm('Hapus entri ini?')) return
-    await supabase.from('liquid_assets').delete().eq('id', id)
+  const del = async () => {
+    setDeleting(true)
+    await supabase.from('liquid_assets').delete().eq('id', confirmItem.id)
+    setDeleting(false); setConfirmItem(null)
+    showToast('Entri berhasil dihapus')
     onRefresh()
   }
 
   const saveJHT = async () => {
+    if (Number(jhtVal) < 0) { setJhtErr('Jumlah tidak boleh negatif'); return }
     setSavingJHT(true); setJhtErr(null)
     const { data: ex } = await supabase.from('jht_assets').select('id').eq('user_id', uid).maybeSingle()
     const { error } = ex
@@ -87,6 +88,7 @@ export default function LiquidTable({ data, jht, uid, onRefresh }) {
     setSavingJHT(false)
     if (error) { setJhtErr(error.message); return }
     onRefresh()
+    showToast('Saldo JHT berhasil diperbarui')
   }
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -103,18 +105,12 @@ export default function LiquidTable({ data, jht, uid, onRefresh }) {
           <div className="field">
             <label>Kategori</label>
             <select value={form.kategori} onChange={e => set('kategori', e.target.value)}>
-              {KATEGORI.map(k => (
-                <option key={k.value} value={k.value}>{k.label}</option>
-              ))}
+              {KATEGORI.map(k => <option key={k.value} value={k.value}>{k.label}</option>)}
             </select>
           </div>
           <div className="field">
             <label>Nama / Keterangan</label>
-            <input
-              value={form.nama}
-              onChange={e => set('nama', e.target.value)}
-              placeholder="BCA Tabungan / Dana Darurat BRI / dll"
-            />
+            <input value={form.nama} onChange={e => set('nama', e.target.value)} placeholder="BCA Tabungan / Dana Darurat BRI / dll" autoFocus />
           </div>
           <div className="field">
             <label>Jumlah</label>
@@ -123,19 +119,22 @@ export default function LiquidTable({ data, jht, uid, onRefresh }) {
         </Modal>
       )}
 
-      {/* Ringkasan per kategori */}
+      {confirmItem && (
+        <ConfirmModal name={confirmItem.nama} onConfirm={del} onCancel={() => setConfirmItem(null)} loading={deleting} />
+      )}
+
       <div className="liquid-summary-row">
         <div className="liquid-summary-item">
-          <span className={`badge badge-blue`}>Main Pocket</span>
+          <span className="badge badge-blue">Main Pocket</span>
           <span className="liquid-summary-val">{fmt(tMainPocket)}</span>
         </div>
         <div className="liquid-summary-item">
-          <span className={`badge badge-amber`}>Dana Darurat</span>
+          <span className="badge badge-amber">Dana Darurat</span>
           <span className="liquid-summary-val">{fmt(tDanaDarurat)}</span>
         </div>
         {tLainnya > 0 && (
           <div className="liquid-summary-item">
-            <span className={`badge badge-gray`}>Lainnya</span>
+            <span className="badge badge-gray">Lainnya</span>
             <span className="liquid-summary-val">{fmt(tLainnya)}</span>
           </div>
         )}
@@ -165,7 +164,7 @@ export default function LiquidTable({ data, jht, uid, onRefresh }) {
                   <td className="actions">
                     <div className="row-actions">
                       <button className="btn-icon" onClick={() => openEdit(r)} title="Edit">✏</button>
-                      <button className="btn-icon del" onClick={() => del(r.id)} title="Hapus">×</button>
+                      <button className="btn-icon del" onClick={() => setConfirmItem(r)} title="Hapus">×</button>
                     </div>
                   </td>
                 </tr>
@@ -182,7 +181,6 @@ export default function LiquidTable({ data, jht, uid, onRefresh }) {
         </table>
       </div>
 
-      {/* JHT */}
       <div className="jht-card">
         <div className="jht-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>

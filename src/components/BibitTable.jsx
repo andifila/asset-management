@@ -3,20 +3,23 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { fmt, fmtPnl } from '../lib/format'
 import Modal from './Modal'
+import ConfirmModal from './ConfirmModal'
 import NumInput from './NumInput'
 
 const EMPTY = { nama_aset: '', kategori: 'pasar_uang', saldo: '', aktual: '', catatan: '' }
 const KAT_LABEL = { pasar_uang: 'Pasar Uang', obligasi: 'Obligasi', saham: 'Saham' }
 const KAT_CLASS = { pasar_uang: 'badge-teal', obligasi: 'badge-blue', saham: 'badge-amber' }
 
-export default function BibitTable({ data, uid, onRefresh }) {
-  const [modal, setModal]     = useState(false)
-  const [form, setForm]       = useState(EMPTY)
-  const [editId, setEditId]   = useState(null)
-  const [saving, setSaving]   = useState(false)
-  const [saveErr, setSaveErr] = useState(null)
-  const [sortKey, setSortKey] = useState(null)
-  const [sortDir, setSortDir] = useState('asc')
+export default function BibitTable({ data, uid, onRefresh, showToast }) {
+  const [modal, setModal]       = useState(false)
+  const [form, setForm]         = useState(EMPTY)
+  const [editId, setEditId]     = useState(null)
+  const [saving, setSaving]     = useState(false)
+  const [saveErr, setSaveErr]   = useState(null)
+  const [confirmItem, setConfirmItem] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+  const [sortKey, setSortKey]   = useState(null)
+  const [sortDir, setSortDir]   = useState('asc')
 
   const tSaldo  = data.reduce((s, r) => s + Number(r.saldo), 0)
   const tAktual = data.reduce((s, r) => s + Number(r.aktual), 0)
@@ -51,19 +54,25 @@ export default function BibitTable({ data, uid, onRefresh }) {
   const close    = () => { setModal(false); setEditId(null); setSaveErr(null) }
 
   const save = async () => {
+    if (!form.nama_aset.trim()) { setSaveErr('Nama aset tidak boleh kosong'); return }
+    if (Number(form.saldo) <= 0) { setSaveErr('Saldo modal harus lebih dari 0'); return }
+    if (Number(form.aktual) < 0) { setSaveErr('Nilai aktual tidak boleh negatif'); return }
     setSaving(true); setSaveErr(null)
-    const p = { nama_aset: form.nama_aset, kategori: form.kategori, saldo: Number(form.saldo), aktual: Number(form.aktual), catatan: form.catatan, user_id: uid }
+    const p = { nama_aset: form.nama_aset.trim(), kategori: form.kategori, saldo: Number(form.saldo), aktual: Number(form.aktual), catatan: form.catatan, user_id: uid }
     const { error } = editId
       ? await supabase.from('bibit_assets').update(p).eq('id', editId)
       : await supabase.from('bibit_assets').insert(p)
     setSaving(false)
     if (error) { setSaveErr(error.message); return }
     close(); onRefresh()
+    showToast(editId ? 'Aset berhasil diperbarui' : 'Aset berhasil ditambahkan')
   }
 
-  const del = async (id) => {
-    if (!confirm('Hapus aset ini?')) return
-    await supabase.from('bibit_assets').delete().eq('id', id)
+  const del = async () => {
+    setDeleting(true)
+    await supabase.from('bibit_assets').delete().eq('id', confirmItem.id)
+    setDeleting(false); setConfirmItem(null)
+    showToast('Aset berhasil dihapus')
     onRefresh()
   }
 
@@ -79,7 +88,7 @@ export default function BibitTable({ data, uid, onRefresh }) {
       {modal && (
         <Modal title={editId ? 'Edit Aset BIBIT' : 'Tambah Aset BIBIT'} onClose={close} onSave={save} saving={saving} error={saveErr}>
           <div className="field"><label>Nama Aset</label>
-            <input value={form.nama_aset} onChange={e => set('nama_aset', e.target.value)} placeholder="PASAR UANG / OBLIGASI / $GOTO" />
+            <input value={form.nama_aset} onChange={e => set('nama_aset', e.target.value)} placeholder="PASAR UANG / OBLIGASI / $GOTO" autoFocus />
           </div>
           <div className="field"><label>Kategori</label>
             <select value={form.kategori} onChange={e => set('kategori', e.target.value)}>
@@ -100,6 +109,10 @@ export default function BibitTable({ data, uid, onRefresh }) {
             <input value={form.catatan || ''} onChange={e => set('catatan', e.target.value)} placeholder="Opsional" />
           </div>
         </Modal>
+      )}
+
+      {confirmItem && (
+        <ConfirmModal name={confirmItem.nama_aset} onConfirm={del} onCancel={() => setConfirmItem(null)} loading={deleting} />
       )}
 
       <div className="table-wrap">
@@ -128,7 +141,7 @@ export default function BibitTable({ data, uid, onRefresh }) {
                   <td className="actions">
                     <div className="row-actions">
                       <button className="btn-icon" onClick={() => openEdit(r)} title="Edit">✏</button>
-                      <button className="btn-icon del" onClick={() => del(r.id)} title="Hapus">×</button>
+                      <button className="btn-icon del" onClick={() => setConfirmItem(r)} title="Hapus">×</button>
                     </div>
                   </td>
                 </tr>

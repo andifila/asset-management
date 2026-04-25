@@ -1,19 +1,23 @@
 // src/components/BinanceTable.jsx
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { fmt, fmtPnl } from '../lib/format'
 import Modal from './Modal'
+import ConfirmModal from './ConfirmModal'
 
 const EMPTY = { symbol: '', catatan: '' }
+const AUTO_REFRESH_MS = 5 * 60 * 1000 // 5 menit
 
-export default function BinanceTable({ data, uid, onRefresh }) {
-  const [modal, setModal]     = useState(false)
-  const [form, setForm]       = useState(EMPTY)
-  const [editId, setEditId]   = useState(null)
-  const [saving, setSaving]   = useState(false)
-  const [saveErr, setSaveErr] = useState(null)
-  const [sortKey, setSortKey] = useState(null)
-  const [sortDir, setSortDir] = useState('asc')
+export default function BinanceTable({ data, uid, onRefresh, showToast }) {
+  const [modal, setModal]       = useState(false)
+  const [form, setForm]         = useState(EMPTY)
+  const [editId, setEditId]     = useState(null)
+  const [saving, setSaving]     = useState(false)
+  const [saveErr, setSaveErr]   = useState(null)
+  const [confirmItem, setConfirmItem] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+  const [sortKey, setSortKey]   = useState(null)
+  const [sortDir, setSortDir]   = useState('asc')
 
   const [saldoUsdt,  setSaldoUsdt]  = useState('')
   const [aktualUsdt, setAktualUsdt] = useState('')
@@ -22,34 +26,12 @@ export default function BinanceTable({ data, uid, onRefresh }) {
   const [rateLoading, setRateLoading] = useState(false)
   const [rateErr,     setRateErr]     = useState(null)
   const [rateTime,    setRateTime]    = useState(null)
+  const [nextRefresh, setNextRefresh] = useState(AUTO_REFRESH_MS / 1000)
+
+  const countdownRef = useRef(null)
 
   const tSaldo  = data.reduce((s, r) => s + Number(r.saldo), 0)
   const tAktual = data.reduce((s, r) => s + Number(r.aktual), 0)
-
-  const toggleSort = (key) => {
-    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
-    else { setSortKey(key); setSortDir('asc') }
-  }
-
-  const sorted = [...data].sort((a, b) => {
-    if (!sortKey) return 0
-    let av, bv
-    if (sortKey === '_pnl') {
-      av = Number(a.aktual) - Number(a.saldo)
-      bv = Number(b.aktual) - Number(b.saldo)
-    } else {
-      av = a[sortKey]; bv = b[sortKey]
-    }
-    const na = Number(av), nb = Number(bv)
-    const cmp = !isNaN(na) && !isNaN(nb) ? na - nb : String(av || '').localeCompare(String(bv || ''))
-    return sortDir === 'asc' ? cmp : -cmp
-  })
-
-  const SortTh = ({ k, children, className }) => (
-    <th className={`sortable${sortKey === k ? ' sorted' : ''}${className ? ' ' + className : ''}`} onClick={() => toggleSort(k)}>
-      {children}<span className="sort-icon">{sortKey === k ? (sortDir === 'asc' ? '↑' : '↓') : '⇅'}</span>
-    </th>
-  )
 
   const fetchRate = async () => {
     setRateLoading(true); setRateErr(null)
@@ -84,7 +66,50 @@ export default function BinanceTable({ data, uid, onRefresh }) {
     setRateLoading(false)
   }
 
-  useEffect(() => { fetchRate() }, [])
+  const startCountdown = () => {
+    if (countdownRef.current) clearInterval(countdownRef.current)
+    setNextRefresh(AUTO_REFRESH_MS / 1000)
+    countdownRef.current = setInterval(() => {
+      setNextRefresh(n => {
+        if (n <= 1) return AUTO_REFRESH_MS / 1000
+        return n - 1
+      })
+    }, 1000)
+  }
+
+  useEffect(() => {
+    fetchRate()
+    startCountdown()
+    const autoId = setInterval(() => { fetchRate(); startCountdown() }, AUTO_REFRESH_MS)
+    return () => { clearInterval(autoId); clearInterval(countdownRef.current) }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const manualRefresh = () => { fetchRate(); startCountdown() }
+
+  const toggleSort = (key) => {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortKey(key); setSortDir('asc') }
+  }
+
+  const sorted = [...data].sort((a, b) => {
+    if (!sortKey) return 0
+    let av, bv
+    if (sortKey === '_pnl') {
+      av = Number(a.aktual) - Number(a.saldo)
+      bv = Number(b.aktual) - Number(b.saldo)
+    } else {
+      av = a[sortKey]; bv = b[sortKey]
+    }
+    const na = Number(av), nb = Number(bv)
+    const cmp = !isNaN(na) && !isNaN(nb) ? na - nb : String(av || '').localeCompare(String(bv || ''))
+    return sortDir === 'asc' ? cmp : -cmp
+  })
+
+  const SortTh = ({ k, children, className }) => (
+    <th className={`sortable${sortKey === k ? ' sorted' : ''}${className ? ' ' + className : ''}`} onClick={() => toggleSort(k)}>
+      {children}<span className="sort-icon">{sortKey === k ? (sortDir === 'asc' ? '↑' : '↓') : '⇅'}</span>
+    </th>
+  )
 
   const saldoIdr  = usdtRate && saldoUsdt  !== '' ? Math.round(Number(saldoUsdt)  * usdtRate) : null
   const aktualIdr = usdtRate && aktualUsdt !== '' ? Math.round(Number(aktualUsdt) * usdtRate) : null
@@ -113,11 +138,13 @@ export default function BinanceTable({ data, uid, onRefresh }) {
   }
 
   const save = async () => {
+    if (!form.symbol.trim()) { setSaveErr('Symbol tidak boleh kosong'); return }
     if (!usdtRate) { setSaveErr('Rate USDT/IDR belum tersedia. Klik Refresh rate dulu.'); return }
-    if (saldoIdr === null || aktualIdr === null) { setSaveErr('Isi Saldo dan Aktual dalam USDT.'); return }
+    if (!saldoUsdt || Number(saldoUsdt) <= 0) { setSaveErr('Saldo modal harus lebih dari 0 USDT'); return }
+    if (aktualUsdt === '' || Number(aktualUsdt) < 0) { setSaveErr('Nilai aktual tidak boleh kosong atau negatif'); return }
     setSaving(true); setSaveErr(null)
     const p = {
-      symbol:  form.symbol,
+      symbol:  form.symbol.trim().toUpperCase(),
       saldo:   saldoIdr,
       aktual:  aktualIdr,
       catatan: form.catatan,
@@ -129,15 +156,23 @@ export default function BinanceTable({ data, uid, onRefresh }) {
     setSaving(false)
     if (error) { setSaveErr(error.message); return }
     close(); onRefresh()
+    showToast(editId ? 'Crypto berhasil diperbarui' : 'Crypto berhasil ditambahkan')
   }
 
-  const del = async (id) => {
-    if (!confirm('Hapus aset ini?')) return
-    await supabase.from('binance_assets').delete().eq('id', id)
+  const del = async () => {
+    setDeleting(true)
+    await supabase.from('binance_assets').delete().eq('id', confirmItem.id)
+    setDeleting(false); setConfirmItem(null)
+    showToast('Crypto berhasil dihapus')
     onRefresh()
   }
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const fmtCountdown = (s) => {
+    const m = Math.floor(s / 60), sec = s % 60
+    return `${m}:${String(sec).padStart(2, '0')}`
+  }
 
   return (
     <div>
@@ -152,9 +187,10 @@ export default function BinanceTable({ data, uid, onRefresh }) {
           <>
             <span className="usdt-rate-val">{usdtRate ? fmt(usdtRate) : '—'}</span>
             {rateTime && <span className="usdt-rate-time">diperbarui {rateTime}</span>}
+            <span className="usdt-rate-countdown">↻ {fmtCountdown(nextRefresh)}</span>
           </>
         )}
-        <button className="btn-xs" onClick={fetchRate} disabled={rateLoading}>↻ Refresh</button>
+        <button className="btn-xs" onClick={manualRefresh} disabled={rateLoading}>↻ Refresh</button>
       </div>
 
       <div className="section-header">
@@ -172,36 +208,20 @@ export default function BinanceTable({ data, uid, onRefresh }) {
           <div className="usdt-rate-hint">
             Rate saat ini: <strong>{usdtRate ? fmt(usdtRate) : '—'}</strong> / USDT
             {!usdtRate && (
-              <button className="btn-xs" style={{ marginLeft: 8 }} onClick={fetchRate} disabled={rateLoading}>↻</button>
+              <button className="btn-xs" style={{ marginLeft: 8 }} onClick={manualRefresh} disabled={rateLoading}>↻</button>
             )}
           </div>
 
           <div className="field-row">
             <div className="field">
               <label>Saldo Modal (USDT)</label>
-              <input
-                type="number"
-                step="any"
-                value={saldoUsdt}
-                onChange={e => setSaldoUsdt(e.target.value)}
-                placeholder="0.0000"
-              />
-              {saldoIdr !== null && (
-                <div className="usdt-idr-preview">≈ {fmt(saldoIdr)}</div>
-              )}
+              <input type="number" step="any" value={saldoUsdt} onChange={e => setSaldoUsdt(e.target.value)} placeholder="0.0000" />
+              {saldoIdr !== null && <div className="usdt-idr-preview">≈ {fmt(saldoIdr)}</div>}
             </div>
             <div className="field">
               <label>Aktual Sekarang (USDT)</label>
-              <input
-                type="number"
-                step="any"
-                value={aktualUsdt}
-                onChange={e => setAktualUsdt(e.target.value)}
-                placeholder="0.0000"
-              />
-              {aktualIdr !== null && (
-                <div className="usdt-idr-preview">≈ {fmt(aktualIdr)}</div>
-              )}
+              <input type="number" step="any" value={aktualUsdt} onChange={e => setAktualUsdt(e.target.value)} placeholder="0.0000" />
+              {aktualIdr !== null && <div className="usdt-idr-preview">≈ {fmt(aktualIdr)}</div>}
             </div>
           </div>
 
@@ -210,6 +230,10 @@ export default function BinanceTable({ data, uid, onRefresh }) {
             <input value={form.catatan || ''} onChange={e => set('catatan', e.target.value)} placeholder="Opsional" />
           </div>
         </Modal>
+      )}
+
+      {confirmItem && (
+        <ConfirmModal name={confirmItem.symbol} onConfirm={del} onCancel={() => setConfirmItem(null)} loading={deleting} />
       )}
 
       <div className="table-wrap">
@@ -237,14 +261,12 @@ export default function BinanceTable({ data, uid, onRefresh }) {
                   <td className="num">{fmt(r.aktual)}</td>
                   <td className={`num ${pnl >= 0 ? 'pos' : 'neg'}`}>{fmtPnl(pnl)}</td>
                   {usdtRate && (
-                    <td className="num muted">
-                      {(Number(r.aktual) / usdtRate).toFixed(2)} USDT
-                    </td>
+                    <td className="num muted">{(Number(r.aktual) / usdtRate).toFixed(2)} USDT</td>
                   )}
                   <td className="actions">
                     <div className="row-actions">
                       <button className="btn-icon" onClick={() => openEdit(r)} title="Edit">✏</button>
-                      <button className="btn-icon del" onClick={() => del(r.id)} title="Hapus">×</button>
+                      <button className="btn-icon del" onClick={() => setConfirmItem(r)} title="Hapus">×</button>
                     </div>
                   </td>
                 </tr>
@@ -260,9 +282,7 @@ export default function BinanceTable({ data, uid, onRefresh }) {
                 <strong>{fmtPnl(tAktual - tSaldo)}</strong>
               </td>
               {usdtRate && (
-                <td className="num muted">
-                  <strong>{(tAktual / usdtRate).toFixed(2)} USDT</strong>
-                </td>
+                <td className="num muted"><strong>{(tAktual / usdtRate).toFixed(2)} USDT</strong></td>
               )}
               <td />
             </tr>

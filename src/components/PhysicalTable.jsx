@@ -3,16 +3,19 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { fmt, fmtDate, calcAge, calcMonths } from '../lib/format'
 import Modal from './Modal'
+import ConfirmModal from './ConfirmModal'
 import NumInput from './NumInput'
 
 const EMPTY = { asset_name: '', buy_price: '', buy_date: '', catatan: '' }
 
-export default function PhysicalTable({ data, uid, onRefresh }) {
-  const [modal, setModal]     = useState(false)
-  const [form, setForm]       = useState(EMPTY)
-  const [editId, setEditId]   = useState(null)
-  const [saving, setSaving]   = useState(false)
-  const [saveErr, setSaveErr] = useState(null)
+export default function PhysicalTable({ data, uid, onRefresh, showToast }) {
+  const [modal, setModal]       = useState(false)
+  const [form, setForm]         = useState(EMPTY)
+  const [editId, setEditId]     = useState(null)
+  const [saving, setSaving]     = useState(false)
+  const [saveErr, setSaveErr]   = useState(null)
+  const [confirmItem, setConfirmItem] = useState(null)
+  const [deleting, setDeleting] = useState(false)
   const [sortKey, setSortKey] = useState(null)
   const [sortDir, setSortDir] = useState('asc')
 
@@ -60,11 +63,13 @@ export default function PhysicalTable({ data, uid, onRefresh }) {
   const close    = () => { setModal(false); setEditId(null); setSaveErr(null) }
 
   const save = async () => {
+    if (!form.asset_name.trim()) { setSaveErr('Nama aset tidak boleh kosong'); return }
+    if (Number(form.buy_price) <= 0) { setSaveErr('Harga beli harus lebih dari 0'); return }
     setSaving(true); setSaveErr(null)
     const p = {
-      asset_name: form.asset_name,
+      asset_name: form.asset_name.trim(),
       buy_price:  Number(form.buy_price),
-      buy_date:   form.buy_date,
+      buy_date:   form.buy_date || null,
       catatan:    form.catatan,
       user_id:    uid,
     }
@@ -74,11 +79,14 @@ export default function PhysicalTable({ data, uid, onRefresh }) {
     setSaving(false)
     if (error) { setSaveErr(error.message); return }
     close(); onRefresh()
+    showToast(editId ? 'Aset berhasil diperbarui' : 'Aset berhasil ditambahkan')
   }
 
-  const del = async (id) => {
-    if (!confirm('Hapus aset ini?')) return
-    await supabase.from('physical_assets').delete().eq('id', id)
+  const del = async () => {
+    setDeleting(true)
+    await supabase.from('physical_assets').delete().eq('id', confirmItem.id)
+    setDeleting(false); setConfirmItem(null)
+    showToast('Aset berhasil dihapus')
     onRefresh()
   }
 
@@ -92,6 +100,10 @@ export default function PhysicalTable({ data, uid, onRefresh }) {
         <h2 className="section-title">Aset Fisik</h2>
         <button className="btn-add" onClick={openAdd}>+ Tambah</button>
       </div>
+
+      {confirmItem && (
+        <ConfirmModal name={confirmItem.asset_name} onConfirm={del} onCancel={() => setConfirmItem(null)} loading={deleting} />
+      )}
 
       {modal && (
         <Modal title={editId ? 'Edit Aset Fisik' : 'Tambah Aset Fisik'} onClose={close} onSave={save} saving={saving} error={saveErr}>
@@ -150,7 +162,7 @@ export default function PhysicalTable({ data, uid, onRefresh }) {
                     <td className="actions">
                       <div className="row-actions">
                         <button className="btn-icon" onClick={() => openEdit(r)} title="Edit">✏</button>
-                        <button className="btn-icon del" onClick={() => del(r.id)} title="Hapus">×</button>
+                        <button className="btn-icon del" onClick={() => setConfirmItem(r)} title="Hapus">×</button>
                       </div>
                     </td>
                   </tr>

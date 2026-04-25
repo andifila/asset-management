@@ -1,11 +1,12 @@
 // src/pages/Dashboard.jsx
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import Summary from '../components/Summary'
 import BibitTable from '../components/BibitTable'
 import BinanceTable from '../components/BinanceTable'
 import PhysicalTable from '../components/PhysicalTable'
 import LiquidTable from '../components/LiquidTable'
+import Toast from '../components/Toast'
 
 
 const TAB_ICONS = { summary: '◈', bibit: '↗', binance: '◆', fisik: '⬡', kas: '◎', custom: '○' }
@@ -31,6 +32,13 @@ export default function Dashboard({ session }) {
 
   const [data, setData]     = useState({ bibit: [], binance: [], fisik: [], kas: [], jht: 0, target: 200000000 })
   const [loading, setLoading] = useState(true)
+  const [toast, setToast]   = useState(null)
+  const toastKey = useRef(0)
+
+  const showToast = useCallback((message, type = 'success') => {
+    toastKey.current += 1
+    setToast({ message, type, key: toastKey.current })
+  }, [])
 
   const uid = session.user.id
 
@@ -127,11 +135,11 @@ export default function Dashboard({ session }) {
     const tab = tabs.find(t => t.id === activeTab)
     if (!tab) return null
     switch (tab.type) {
-      case 'summary': return <Summary data={data} uid={uid} onRefresh={fetchAll} />
-      case 'bibit':   return <BibitTable data={data.bibit} uid={uid} onRefresh={fetchAll} />
-      case 'binance': return <BinanceTable data={data.binance} uid={uid} onRefresh={fetchAll} />
-      case 'fisik':   return <PhysicalTable data={data.fisik} uid={uid} onRefresh={fetchAll} />
-      case 'kas':     return <LiquidTable data={data.kas} jht={data.jht} uid={uid} onRefresh={fetchAll} />
+      case 'summary': return <Summary data={data} uid={uid} onRefresh={fetchAll} showToast={showToast} />
+      case 'bibit':   return <BibitTable data={data.bibit} uid={uid} onRefresh={fetchAll} showToast={showToast} />
+      case 'binance': return <BinanceTable data={data.binance} uid={uid} onRefresh={fetchAll} showToast={showToast} />
+      case 'fisik':   return <PhysicalTable data={data.fisik} uid={uid} onRefresh={fetchAll} showToast={showToast} />
+      case 'kas':     return <LiquidTable data={data.kas} jht={data.jht} uid={uid} onRefresh={fetchAll} showToast={showToast} />
       default: return (
         <div className="custom-tab-empty">
           <div className="custom-tab-icon">◈</div>
@@ -223,6 +231,10 @@ export default function Dashboard({ session }) {
           : renderContent()
         }
       </main>
+
+      {toast && (
+        <Toast key={toast.key} message={toast.message} type={toast.type} onDone={() => setToast(null)} />
+      )}
     </div>
   )
 }
