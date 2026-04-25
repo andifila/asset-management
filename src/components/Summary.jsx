@@ -12,11 +12,17 @@ export default function Summary({ data, uid, onRefresh }) {
   const tBibitAktual = bibit.reduce((s, r) => s + Number(r.aktual), 0)
   const tBinSaldo    = binance.reduce((s, r) => s + Number(r.saldo), 0)
   const tBinAktual   = binance.reduce((s, r) => s + Number(r.aktual), 0)
-  const tKas         = kas.reduce((s, r) => s + Number(r.jumlah), 0)
-  const tFisik       = fisik.reduce((s, r) => s + Number(r.buy_price), 0)
-  const tJHT         = Number(jht) || 0
-  const tAsset       = tBibitAktual + tBinAktual + tKas + tJHT
-  const prog         = target > 0 ? Math.min((tAsset / target) * 100, 100) : 0
+  const tKas          = kas.reduce((s, r) => s + Number(r.jumlah), 0)
+  const tFisikBeli    = fisik.reduce((s, r) => s + Number(r.buy_price), 0)
+  const tFisikAktual  = fisik.reduce((s, r) => s + Number(r.aktual || 0), 0)
+  const tFisikPnl     = tFisikAktual - tFisikBeli
+  const tJHT          = Number(jht) || 0
+
+  const tLiquid = tKas + tJHT
+  const tInvest = tBibitAktual + tBinAktual
+  const tAsset  = tLiquid + tInvest
+
+  const prog = target > 0 ? Math.min((tAsset / target) * 100, 100) : 0
 
   const saveTarget = async () => {
     const { data: ex } = await supabase.from('financial_goals').select('id').eq('user_id', uid).maybeSingle()
@@ -26,24 +32,36 @@ export default function Summary({ data, uid, onRefresh }) {
     onRefresh()
   }
 
-  const metrics = [
-    { label: 'Total Aset Investasi', value: fmt(tAsset), sub: `${prog.toFixed(2)}% dari target`, accent: true },
-    { label: 'BIBIT', value: fmt(tBibitAktual), sub: fmtPnl(tBibitAktual - tBibitSaldo), subClass: tBibitAktual >= tBibitSaldo ? 'pos' : 'neg' },
-    { label: 'Binance', value: fmt(tBinAktual), sub: fmtPnl(tBinAktual - tBinSaldo), subClass: tBinAktual >= tBinSaldo ? 'pos' : 'neg' },
+  const liquidMetrics = [
     { label: 'Kas Likuid', value: fmt(tKas), sub: `${kas.length} pos` },
     { label: 'JHT', value: fmt(tJHT), sub: 'BPJS Ketenagakerjaan' },
-    { label: 'Aset Fisik', value: fmt(tFisik), sub: `${fisik.length} item (nilai beli)` },
+  ]
+
+  const investMetrics = [
+    {
+      label: 'BIBIT',
+      value: fmt(tBibitAktual),
+      sub: fmtPnl(tBibitAktual - tBibitSaldo),
+      subClass: tBibitAktual >= tBibitSaldo ? 'pos' : 'neg',
+    },
+    {
+      label: 'Binance',
+      value: fmt(tBinAktual),
+      sub: fmtPnl(tBinAktual - tBinSaldo),
+      subClass: tBinAktual >= tBinSaldo ? 'pos' : 'neg',
+    },
   ]
 
   const allocs = [
-    { label: 'BIBIT', val: tBibitAktual, color: 'var(--blue)' },
-    { label: 'Binance', val: tBinAktual, color: 'var(--amber)' },
-    { label: 'Kas', val: tKas, color: 'var(--green)' },
-    { label: 'JHT', val: tJHT, color: 'var(--purple)' },
+    { label: 'BIBIT',   val: tBibitAktual, color: 'var(--blue)',   group: 'invest' },
+    { label: 'Binance', val: tBinAktual,   color: 'var(--amber)',  group: 'invest' },
+    { label: 'Kas',     val: tKas,         color: 'var(--green)',  group: 'liquid' },
+    { label: 'JHT',     val: tJHT,         color: 'var(--purple)', group: 'liquid' },
   ]
 
   return (
     <div>
+      {/* Header + target */}
       <div className="section-header">
         <h2 className="section-title">Ringkasan Portofolio</h2>
         <div className="target-row">
@@ -63,26 +81,114 @@ export default function Summary({ data, uid, onRefresh }) {
         </div>
       </div>
 
-      <div className="progress-section">
-        <div className="progress-track">
-          <div className="progress-fill" style={{ width: `${prog}%` }} />
+      {/* Total aset + progress */}
+      <div className="summary-total-card">
+        <div className="summary-total-left">
+          <div className="summary-total-label">Total Aset</div>
+          <div className="summary-total-value">{fmt(tAsset)}</div>
         </div>
-        <span className="progress-label">{prog.toFixed(2)}%</span>
-      </div>
-
-      <div className="metrics-grid">
-        {metrics.map((m, i) => (
-          <div key={i} className={`metric-card ${m.accent ? 'metric-accent' : ''}`}>
-            <div className="metric-label">{m.label}</div>
-            <div className="metric-value">{m.value}</div>
-            <div className={`metric-sub ${m.subClass || ''}`}>{m.sub}</div>
+        <div className="summary-total-right">
+          <div className="progress-section" style={{ marginBottom: 0 }}>
+            <div className="progress-track">
+              <div className="progress-fill" style={{ width: `${prog}%` }} />
+            </div>
+            <span className="progress-label">{prog.toFixed(2)}%</span>
           </div>
-        ))}
+          <div className="summary-total-sub">dari target {fmt(target)}</div>
+        </div>
       </div>
 
+      {/* Aset Liquid */}
+      <div className="metrics-group">
+        <div className="metrics-group-header">
+          <span className="metrics-group-label">
+            <span className="metrics-group-dot" style={{ background: 'var(--green)' }} />
+            Aset Liquid
+          </span>
+          <span className="metrics-group-total">{fmt(tLiquid)}</span>
+        </div>
+        <div className="metrics-grid">
+          {liquidMetrics.map((m, i) => (
+            <div key={i} className="metric-card">
+              <div className="metric-label">{m.label}</div>
+              <div className="metric-value">{m.value}</div>
+              <div className={`metric-sub ${m.subClass || ''}`}>{m.sub}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Aset Tidak Liquid */}
+      <div className="metrics-group">
+        <div className="metrics-group-header">
+          <span className="metrics-group-label">
+            <span className="metrics-group-dot" style={{ background: 'var(--blue)' }} />
+            Aset Tidak Liquid
+          </span>
+          <span className="metrics-group-total">{fmt(tInvest)}</span>
+        </div>
+        <div className="metrics-grid">
+          {investMetrics.map((m, i) => (
+            <div key={i} className="metric-card">
+              <div className="metric-label">{m.label}</div>
+              <div className="metric-value">{m.value}</div>
+              <div className={`metric-sub ${m.subClass || ''}`}>{m.sub}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Aset Fisik — tidak dihitung ke total */}
+      <div className="metrics-group">
+        <div className="metrics-group-header">
+          <span className="metrics-group-label">
+            <span className="metrics-group-dot" style={{ background: 'var(--muted)' }} />
+            Aset Fisik
+          </span>
+          <span className="metrics-group-info">tidak dihitung ke total</span>
+        </div>
+        <div className="metrics-grid">
+          <div className="metric-card metric-fisik">
+            <div className="metric-label">Harga Beli</div>
+            <div className="metric-value">{fmt(tFisikBeli)}</div>
+            <div className="metric-sub">{fisik.length} item</div>
+          </div>
+          {tFisikAktual > 0 && (
+            <div className="metric-card metric-fisik">
+              <div className="metric-label">Nilai Aktual</div>
+              <div className="metric-value">{fmt(tFisikAktual)}</div>
+              <div className={`metric-sub ${tFisikPnl >= 0 ? 'pos' : 'neg'}`}>{fmtPnl(tFisikPnl)}</div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Alokasi */}
       <div className="alloc-card">
-        <h3 className="alloc-title">Alokasi Aset Investasi</h3>
-        {allocs.map(a => {
+        <h3 className="alloc-title">Alokasi Aset</h3>
+
+        <div className="alloc-group-label">Tidak Liquid</div>
+        {allocs.filter(a => a.group === 'invest').map(a => {
+          const pct = tAsset > 0 ? (a.val / tAsset) * 100 : 0
+          return (
+            <div key={a.label} className="alloc-row">
+              <div className="alloc-name">
+                <span className="alloc-dot" style={{ background: a.color }} />
+                {a.label}
+              </div>
+              <div className="alloc-track">
+                <div className="alloc-bar" style={{ width: `${pct}%`, background: a.color }} />
+              </div>
+              <span className="alloc-pct">{pct.toFixed(1)}%</span>
+              <span className="alloc-val">{fmt(a.val)}</span>
+            </div>
+          )
+        })}
+
+        <div className="alloc-divider" />
+
+        <div className="alloc-group-label">Liquid</div>
+        {allocs.filter(a => a.group === 'liquid').map(a => {
           const pct = tAsset > 0 ? (a.val / tAsset) * 100 : 0
           return (
             <div key={a.label} className="alloc-row">

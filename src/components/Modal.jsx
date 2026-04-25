@@ -1,5 +1,5 @@
 // src/components/Modal.jsx
-export default function Modal({ title, onClose, onSave, saving, children }) {
+export default function Modal({ title, onClose, onSave, saving, error, children }) {
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal-box">
@@ -7,7 +7,10 @@ export default function Modal({ title, onClose, onSave, saving, children }) {
           <h3 className="modal-title">{title}</h3>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
-        <div className="modal-body">{children}</div>
+        <div className="modal-body">
+          {children}
+          {error && <div className="modal-error">{error}</div>}
+        </div>
         <div className="modal-footer">
           <button className="btn-cancel" onClick={onClose}>Batal</button>
           <button className="btn-save" onClick={onSave} disabled={saving}>

@@ -9,24 +9,28 @@ const KAT_LABEL = { pasar_uang: 'Pasar Uang', obligasi: 'Obligasi', saham: 'Saha
 const KAT_CLASS = { pasar_uang: 'badge-teal', obligasi: 'badge-blue', saham: 'badge-amber' }
 
 export default function BibitTable({ data, uid, onRefresh }) {
-  const [modal, setModal] = useState(false)
-  const [form, setForm]   = useState(EMPTY)
-  const [editId, setEditId] = useState(null)
-  const [saving, setSaving] = useState(false)
+  const [modal, setModal]     = useState(false)
+  const [form, setForm]       = useState(EMPTY)
+  const [editId, setEditId]   = useState(null)
+  const [saving, setSaving]   = useState(false)
+  const [saveErr, setSaveErr] = useState(null)
 
   const tSaldo  = data.reduce((s, r) => s + Number(r.saldo), 0)
   const tAktual = data.reduce((s, r) => s + Number(r.aktual), 0)
 
-  const openAdd  = () => { setForm(EMPTY); setEditId(null); setModal(true) }
-  const openEdit = (r) => { setForm(r); setEditId(r.id); setModal(true) }
-  const close    = () => { setModal(false); setEditId(null) }
+  const openAdd  = () => { setForm(EMPTY); setEditId(null); setSaveErr(null); setModal(true) }
+  const openEdit = (r) => { setForm(r); setEditId(r.id); setSaveErr(null); setModal(true) }
+  const close    = () => { setModal(false); setEditId(null); setSaveErr(null) }
 
   const save = async () => {
-    setSaving(true)
+    setSaving(true); setSaveErr(null)
     const p = { nama_aset: form.nama_aset, kategori: form.kategori, saldo: Number(form.saldo), aktual: Number(form.aktual), catatan: form.catatan, user_id: uid }
-    if (editId) await supabase.from('bibit_assets').update(p).eq('id', editId)
-    else        await supabase.from('bibit_assets').insert(p)
-    setSaving(false); close(); onRefresh()
+    const { error } = editId
+      ? await supabase.from('bibit_assets').update(p).eq('id', editId)
+      : await supabase.from('bibit_assets').insert(p)
+    setSaving(false)
+    if (error) { setSaveErr(error.message); return }
+    close(); onRefresh()
   }
 
   const del = async (id) => {
@@ -45,7 +49,7 @@ export default function BibitTable({ data, uid, onRefresh }) {
       </div>
 
       {modal && (
-        <Modal title={editId ? 'Edit Aset BIBIT' : 'Tambah Aset BIBIT'} onClose={close} onSave={save} saving={saving}>
+        <Modal title={editId ? 'Edit Aset BIBIT' : 'Tambah Aset BIBIT'} onClose={close} onSave={save} saving={saving} error={saveErr}>
           <div className="field"><label>Nama Aset</label>
             <input value={form.nama_aset} onChange={e => set('nama_aset', e.target.value)} placeholder="PASAR UANG / OBLIGASI / $GOTO" />
           </div>

@@ -7,7 +7,7 @@ const TAB_TYPES = [
   { value: 'bibit',   label: 'BIBIT (Reksa Dana)' },
   { value: 'binance', label: 'Binance (Crypto)' },
   { value: 'fisik',   label: 'Aset Fisik' },
-  { value: 'kas',     label: 'Kas & JHT' },
+  { value: 'kas',     label: 'Aset Liquid' },
   { value: 'custom',  label: 'Custom (Kosong)' },
 ]
 

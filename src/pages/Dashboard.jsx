@@ -7,19 +7,21 @@ import BinanceTable from '../components/BinanceTable'
 import PhysicalTable from '../components/PhysicalTable'
 import LiquidTable from '../components/LiquidTable'
 
+const LOCKED_TYPES = new Set(['summary', 'fisik', 'kas'])
+
 const DEFAULT_TABS = [
-  { label: 'Ringkasan', type: 'summary', position: 0 },
-  { label: 'BIBIT',     type: 'bibit',   position: 1 },
-  { label: 'Binance',   type: 'binance', position: 2 },
-  { label: 'Aset Fisik',type: 'fisik',   position: 3 },
-  { label: 'Kas & JHT', type: 'kas',     position: 4 },
+  { label: 'Ringkasan',   type: 'summary', position: 0 },
+  { label: 'BIBIT',       type: 'bibit',   position: 1 },
+  { label: 'Binance',     type: 'binance', position: 2 },
+  { label: 'Aset Fisik',  type: 'fisik',   position: 3 },
+  { label: 'Aset Liquid', type: 'kas',     position: 4 },
 ]
 
 const TAB_TYPES = [
   { value: 'bibit',   label: 'BIBIT (Reksa Dana)' },
   { value: 'binance', label: 'Binance (Crypto)' },
   { value: 'fisik',   label: 'Aset Fisik' },
-  { value: 'kas',     label: 'Kas & JHT' },
+  { value: 'kas',     label: 'Aset Liquid' },
   { value: 'summary', label: 'Ringkasan' },
   { value: 'custom',  label: 'Custom (Kosong)' },
 ]
@@ -36,6 +38,8 @@ export default function Dashboard({ session }) {
   const [newLabel, setNewLabel] = useState('')
   const [newType, setNewType] = useState('bibit')
   const [addingTab, setAddingTab] = useState(false)
+
+  const [tabMenuId, setTabMenuId] = useState(null)
 
   const [data, setData] = useState({ bibit: [], binance: [], fisik: [], kas: [], jht: 0, target: 200000000 })
   const [loading, setLoading] = useState(true)
@@ -101,10 +105,21 @@ export default function Dashboard({ session }) {
     return () => document.removeEventListener('mousedown', handler)
   }, [showAddTab])
 
+  // Close tab menu on outside click
+  useEffect(() => {
+    if (!tabMenuId) return
+    const handler = (e) => {
+      if (!e.target.closest('.tabnav-menu-wrap')) setTabMenuId(null)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [tabMenuId])
+
   const startRename = (id, label) => {
     setEditingTabId(id)
     setRenameValue(label)
     setShowAddTab(false)
+    setTabMenuId(null)
   }
 
   const commitRename = async (id) => {
@@ -118,6 +133,7 @@ export default function Dashboard({ session }) {
   }
 
   const deleteTab = async (tab) => {
+    if (LOCKED_TYPES.has(tab.type)) return
     if (!confirm(`Hapus tab "${tab.label}"?`)) return
     const next = tabs.filter(t => t.id !== tab.id)
     setTabs(next)
@@ -183,39 +199,55 @@ export default function Dashboard({ session }) {
 
       <nav className="tabnav">
         <div className="tabnav-tabs">
-          {tabs.map(t => (
-            <div key={t.id} className={`tabnav-item ${activeTab === t.id ? 'active' : ''}`}>
-              {editingTabId === t.id ? (
-                <input
-                  className="tabnav-rename"
-                  value={renameValue}
-                  onChange={e => setRenameValue(e.target.value)}
-                  onBlur={() => commitRename(t.id)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') commitRename(t.id)
-                    if (e.key === 'Escape') setEditingTabId(null)
-                  }}
-                  autoFocus
-                />
-              ) : (
-                <button
-                  className="tabnav-btn"
-                  onClick={() => setActiveTab(t.id)}
-                  onDoubleClick={() => startRename(t.id, t.label)}
-                  title="Klik untuk buka · Klik dua kali untuk rename"
-                >
-                  {t.label}
-                </button>
-              )}
-              {tabs.length > 1 && (
-                <button
-                  className="tabnav-close"
-                  onClick={e => { e.stopPropagation(); deleteTab(t) }}
-                  title="Hapus tab"
-                >×</button>
-              )}
-            </div>
-          ))}
+          {tabs.map(t => {
+            const locked = LOCKED_TYPES.has(t.type)
+            return (
+              <div key={t.id} className={`tabnav-item ${activeTab === t.id ? 'active' : ''}`}>
+                {editingTabId === t.id ? (
+                  <input
+                    className="tabnav-rename"
+                    value={renameValue}
+                    onChange={e => setRenameValue(e.target.value)}
+                    onBlur={() => commitRename(t.id)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') commitRename(t.id)
+                      if (e.key === 'Escape') setEditingTabId(null)
+                    }}
+                    autoFocus
+                  />
+                ) : (
+                  <button
+                    className="tabnav-btn"
+                    onClick={() => setActiveTab(t.id)}
+                    onDoubleClick={() => startRename(t.id, t.label)}
+                    title="Klik untuk buka · Klik dua kali untuk rename"
+                  >
+                    {t.label}
+                  </button>
+                )}
+
+                <div className="tabnav-menu-wrap">
+                  <button
+                    className={`tabnav-menu-btn ${tabMenuId === t.id ? 'open' : ''}`}
+                    onClick={e => { e.stopPropagation(); setTabMenuId(v => v === t.id ? null : t.id) }}
+                    title="Opsi tab"
+                  >⋮</button>
+                  {tabMenuId === t.id && (
+                    <div className="tabnav-menu-dropdown">
+                      <button className="tabnav-menu-item" onClick={() => startRename(t.id, t.label)}>
+                        ✏ Rename
+                      </button>
+                      {!locked && (
+                        <button className="tabnav-menu-item del" onClick={() => { setTabMenuId(null); deleteTab(t) }}>
+                          × Hapus Tab
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
         </div>
 
         <div className="tabnav-add-wrap" ref={addDropdownRef}>
