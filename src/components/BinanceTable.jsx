@@ -26,20 +26,34 @@ export default function BinanceTable({ data, uid, onRefresh }) {
 
   const fetchRate = async () => {
     setRateLoading(true); setRateErr(null)
-    try {
-      const res = await fetch(
-        'https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=idr',
-        { cache: 'no-store' }
-      )
-      if (!res.ok) throw new Error()
-      const json = await res.json()
-      const rate = json?.tether?.idr
-      if (!rate) throw new Error()
-      setUsdtRate(rate)
-      setRateTime(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }))
-    } catch {
-      setRateErr('Gagal mengambil rate — cek koneksi')
+    const opt = { signal: AbortSignal.timeout(6000) }
+    const sources = [
+      async () => {
+        const j = await (await fetch('https://api.binance.com/api/v3/ticker/price?symbol=USDTBIDR', opt)).json()
+        if (j?.price) return Number(j.price)
+        throw new Error()
+      },
+      async () => {
+        const j = await (await fetch('https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=idr', opt)).json()
+        if (j?.tether?.idr) return j.tether.idr
+        throw new Error()
+      },
+      async () => {
+        const j = await (await fetch('https://open.er-api.com/v6/latest/USD', opt)).json()
+        if (j?.rates?.IDR) return Math.round(j.rates.IDR)
+        throw new Error()
+      },
+    ]
+    for (const src of sources) {
+      try {
+        const rate = await src()
+        setUsdtRate(rate)
+        setRateTime(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }))
+        setRateLoading(false)
+        return
+      } catch {}
     }
+    setRateErr('Gagal mengambil rate — coba lagi')
     setRateLoading(false)
   }
 

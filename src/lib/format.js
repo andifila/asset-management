@@ -20,3 +20,10 @@ export const calcAge = (d) => {
   if (m < 0) { y--; m += 12 }
   return `${y} Thn ${m} Bln`
 }
+
+export const calcMonths = (d) => {
+  if (!d) return null
+  const now = new Date(), then = new Date(d)
+  const m = (now.getFullYear() - then.getFullYear()) * 12 + (now.getMonth() - then.getMonth())
+  return Math.max(m, 1)
+}

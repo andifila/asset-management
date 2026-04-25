@@ -40,6 +40,7 @@ export default function Dashboard({ session }) {
   const [addingTab, setAddingTab] = useState(false)
 
   const [tabMenuId, setTabMenuId] = useState(null)
+  const [menuPos,   setMenuPos]   = useState(null)
 
   const [data, setData] = useState({ bibit: [], binance: [], fisik: [], kas: [], jht: 0, target: 200000000 })
   const [loading, setLoading] = useState(true)
@@ -109,7 +110,9 @@ export default function Dashboard({ session }) {
   useEffect(() => {
     if (!tabMenuId) return
     const handler = (e) => {
-      if (!e.target.closest('.tabnav-menu-wrap')) setTabMenuId(null)
+      if (!e.target.closest('.tabnav-menu-btn') && !e.target.closest('.tabnav-menu-dropdown')) {
+        setTabMenuId(null); setMenuPos(null)
+      }
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -119,7 +122,7 @@ export default function Dashboard({ session }) {
     setEditingTabId(id)
     setRenameValue(label)
     setShowAddTab(false)
-    setTabMenuId(null)
+    setTabMenuId(null); setMenuPos(null)
   }
 
   const commitRename = async (id) => {
@@ -229,26 +232,37 @@ export default function Dashboard({ session }) {
                 <div className="tabnav-menu-wrap">
                   <button
                     className={`tabnav-menu-btn ${tabMenuId === t.id ? 'open' : ''}`}
-                    onClick={e => { e.stopPropagation(); setTabMenuId(v => v === t.id ? null : t.id) }}
+                    onClick={e => {
+                      e.stopPropagation()
+                      if (tabMenuId === t.id) { setTabMenuId(null); setMenuPos(null); return }
+                      const rect = e.currentTarget.getBoundingClientRect()
+                      setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
+                      setTabMenuId(t.id)
+                    }}
                     title="Opsi tab"
                   >⋮</button>
-                  {tabMenuId === t.id && (
-                    <div className="tabnav-menu-dropdown">
-                      <button className="tabnav-menu-item" onClick={() => startRename(t.id, t.label)}>
-                        ✏ Rename
-                      </button>
-                      {!locked && (
-                        <button className="tabnav-menu-item del" onClick={() => { setTabMenuId(null); deleteTab(t) }}>
-                          × Hapus Tab
-                        </button>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
             )
           })}
         </div>
+
+        {/* Tab menu dropdown — di luar overflow container agar tidak terpotong */}
+        {tabMenuId && menuPos && (() => {
+          const tab = tabs.find(t => t.id === tabMenuId)
+          if (!tab) return null
+          const locked = LOCKED_TYPES.has(tab.type)
+          return (
+            <div className="tabnav-menu-dropdown" style={{ position: 'fixed', top: menuPos.top, right: menuPos.right }}>
+              <button className="tabnav-menu-item" onClick={() => startRename(tab.id, tab.label)}>✏ Rename</button>
+              {!locked && (
+                <button className="tabnav-menu-item del" onClick={() => { setTabMenuId(null); setMenuPos(null); deleteTab(tab) }}>
+                  × Hapus Tab
+                </button>
+              )}
+            </div>
+          )
+        })()}
 
         <div className="tabnav-add-wrap" ref={addDropdownRef}>
           <button

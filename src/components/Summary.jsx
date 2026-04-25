@@ -12,11 +12,9 @@ export default function Summary({ data, uid, onRefresh }) {
   const tBibitAktual = bibit.reduce((s, r) => s + Number(r.aktual), 0)
   const tBinSaldo    = binance.reduce((s, r) => s + Number(r.saldo), 0)
   const tBinAktual   = binance.reduce((s, r) => s + Number(r.aktual), 0)
-  const tKas          = kas.reduce((s, r) => s + Number(r.jumlah), 0)
-  const tFisikBeli    = fisik.reduce((s, r) => s + Number(r.buy_price), 0)
-  const tFisikAktual  = fisik.reduce((s, r) => s + Number(r.aktual || 0), 0)
-  const tFisikPnl     = tFisikAktual - tFisikBeli
-  const tJHT          = Number(jht) || 0
+  const tKas   = kas.reduce((s, r) => s + Number(r.jumlah), 0)
+  const tFisik = fisik.reduce((s, r) => s + Number(r.buy_price), 0)
+  const tJHT   = Number(jht) || 0
 
   const tLiquid = tKas + tJHT
   const tInvest = tBibitAktual + tBinAktual
@@ -149,17 +147,10 @@ export default function Summary({ data, uid, onRefresh }) {
         </div>
         <div className="metrics-grid">
           <div className="metric-card metric-fisik">
-            <div className="metric-label">Harga Beli</div>
-            <div className="metric-value">{fmt(tFisikBeli)}</div>
+            <div className="metric-label">Total Nilai Beli</div>
+            <div className="metric-value">{fmt(tFisik)}</div>
             <div className="metric-sub">{fisik.length} item</div>
           </div>
-          {tFisikAktual > 0 && (
-            <div className="metric-card metric-fisik">
-              <div className="metric-label">Nilai Aktual</div>
-              <div className="metric-value">{fmt(tFisikAktual)}</div>
-              <div className={`metric-sub ${tFisikPnl >= 0 ? 'pos' : 'neg'}`}>{fmtPnl(tFisikPnl)}</div>
-            </div>
-          )}
         </div>
       </div>
 

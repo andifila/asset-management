@@ -452,6 +452,10 @@ tfoot td { border-top: 1px solid var(--border2); background: var(--bg3); }
   color: var(--muted); margin-top: 4px;
 }
 
+/* HARGA PER BULAN */
+.per-bulan { font-family: 'DM Mono', monospace; font-size: 0.78rem; }
+.per-bulan-unit { font-size: 0.65rem; color: var(--muted); margin-left: 1px; }
+
 /* LIQUID SUMMARY ROW */
 .liquid-summary-row {
   display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
