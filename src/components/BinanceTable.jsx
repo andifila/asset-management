@@ -280,12 +280,7 @@ export default function BinanceTable({ data, uid, onRefresh, showToast }) {
               const rankCls = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : 'rank-3'
               return (
                 <tr key={r.id}>
-                  <td>
-                    <div className="cell-with-rank">
-                      {rank && <span className={`rank-badge ${rankCls}`}>#{rank}</span>}
-                      <span className="crypto-sym">{r.symbol}</span>
-                    </div>
-                  </td>
+                  <td><span className="crypto-sym">{r.symbol}</span></td>
                   <td className="num">{fmt(r.saldo)}</td>
                   <td className="num">{fmt(r.aktual)}</td>
                   <td className={`num ${pnl >= 0 ? 'pos' : 'neg'}`}>{fmtPnl(pnl)}</td>
@@ -334,8 +329,8 @@ export default function BinanceTable({ data, uid, onRefresh, showToast }) {
                 <div className="physical-rank-info">
                   <div className="physical-rank-name">{item.symbol}</div>
                   <div className={`physical-rank-val ${item.pnlPct >= 0 ? 'pos' : 'neg'}`}>
-                    {sign}{item.pnlPct.toFixed(2)}%
-                    <span className="rank-val-sub">{fmtPnl(Number(item.aktual) - Number(item.saldo))}</span>
+                    {fmtPnl(Number(item.aktual) - Number(item.saldo))}
+                    <span className="rank-val-sub">{sign}{item.pnlPct.toFixed(2)}%</span>
                   </div>
                 </div>
               </div>

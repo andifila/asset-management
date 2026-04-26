@@ -156,12 +156,7 @@ export default function BibitTable({ data, uid, onRefresh, showToast }) {
               const rank = profitRanks[r.id]
               return (
                 <tr key={r.id}>
-                  <td>
-                    <div className="cell-with-rank">
-                      {rank && <span className={`rank-badge ${rankCls(r.id)}`}>#{rank}</span>}
-                      {r.nama_aset}
-                    </div>
-                  </td>
+                  <td>{r.nama_aset}</td>
                   <td><span className={`badge ${KAT_CLASS[r.kategori] || 'badge-gray'}`}>{t(r.kategori) || r.kategori}</span></td>
                   <td className="num">{fmt(r.saldo)}</td>
                   <td className="num">{fmt(r.aktual)}</td>
@@ -201,8 +196,8 @@ export default function BibitTable({ data, uid, onRefresh, showToast }) {
                 <div className="physical-rank-info">
                   <div className="physical-rank-name">{item.nama_aset}</div>
                   <div className={`physical-rank-val ${item.pnlPct >= 0 ? 'pos' : 'neg'}`}>
-                    {sign}{item.pnlPct.toFixed(2)}%
-                    <span className="rank-val-sub">{fmtPnl(Number(item.aktual) - Number(item.saldo))}</span>
+                    {fmtPnl(Number(item.aktual) - Number(item.saldo))}
+                    <span className="rank-val-sub">{sign}{item.pnlPct.toFixed(2)}%</span>
                   </div>
                 </div>
               </div>

@@ -113,78 +113,84 @@ export default function Summary({ data, uid, onRefresh, showToast }) {
         </div>
       </div>
 
-      {/* Aset Liquid */}
-      <div className="metrics-group">
-        <div className="metrics-group-header">
-          <span className="metrics-group-label">
-            <span className="metrics-group-dot" style={{ background: 'var(--green)' }} />
-            {t('liquidAsset')}
-          </span>
-          <span className="metrics-group-total">{fmt(tLiquid)}</span>
-        </div>
-        <div className="metrics-grid">
-          {liquidMetrics.map((m, i) => (
-            <div key={i} className="metric-card">
-              <div className="metric-label">{m.label}</div>
-              <div className="metric-value">{m.value}</div>
-              <div className="metric-sub">{m.sub}</div>
+      <div className="dash-grid">
+        <div className="dash-main">
+          {/* Aset Liquid */}
+          <div className="metrics-group">
+            <div className="metrics-group-header">
+              <span className="metrics-group-label">
+                <span className="metrics-group-dot" style={{ background: 'var(--green)' }} />
+                {t('liquidAsset')}
+              </span>
+              <span className="metrics-group-total">{fmt(tLiquid)}</span>
             </div>
-          ))}
-        </div>
-      </div>
+            <div className="metrics-grid">
+              {liquidMetrics.map((m, i) => (
+                <div key={i} className="metric-card">
+                  <div className="metric-label">{m.label}</div>
+                  <div className="metric-value">{m.value}</div>
+                  <div className="metric-sub">{m.sub}</div>
+                </div>
+              ))}
+            </div>
+          </div>
 
-      {/* Aset Tidak Liquid */}
-      <div className="metrics-group">
-        <div className="metrics-group-header">
-          <span className="metrics-group-label">
-            <span className="metrics-group-dot" style={{ background: 'var(--blue)' }} />
-            {t('nonLiquidAsset')}
-          </span>
-          <span className="metrics-group-total">{fmt(tInvest)}</span>
-        </div>
-        <div className="metrics-grid">
-          {investMetrics.map((m, i) => (
-            <div key={i} className="metric-card">
-              <div className="metric-label">{m.label}</div>
-              <div className="metric-value">{m.value}</div>
-              <div className={`metric-sub metric-pnl ${m.profit ? 'pos' : 'neg'}`}>
-                <span className="metric-pnl-arrow">{m.profit ? '▲' : '▼'}</span>
-                {m.sub}
+          {/* Aset Tidak Liquid */}
+          <div className="metrics-group">
+            <div className="metrics-group-header">
+              <span className="metrics-group-label">
+                <span className="metrics-group-dot" style={{ background: 'var(--blue)' }} />
+                {t('nonLiquidAsset')}
+              </span>
+              <span className="metrics-group-total">{fmt(tInvest)}</span>
+            </div>
+            <div className="metrics-grid">
+              {investMetrics.map((m, i) => (
+                <div key={i} className="metric-card">
+                  <div className="metric-label">{m.label}</div>
+                  <div className="metric-value">{m.value}</div>
+                  <div className={`metric-sub metric-pnl ${m.profit ? 'pos' : 'neg'}`}>
+                    <span className="metric-pnl-arrow">{m.profit ? '▲' : '▼'}</span>
+                    {m.sub}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Aset Fisik */}
+          <div className="metrics-group">
+            <div className="metrics-group-header">
+              <span className="metrics-group-label">
+                <span className="metrics-group-dot" style={{ background: 'var(--muted)' }} />
+                {t('physicalAsset')}
+              </span>
+              <span className="metrics-group-total">{fmt(tFisik)}</span>
+            </div>
+            <div className="metrics-grid">
+              <div className="metric-card metric-fisik">
+                <div className="metric-label">{t('totalBuyPrice')}</div>
+                <div className="metric-value">{fmt(tFisik)}</div>
+                <div className="metric-sub">{fisik.length} {t('items')}</div>
               </div>
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Aset Fisik */}
-      <div className="metrics-group">
-        <div className="metrics-group-header">
-          <span className="metrics-group-label">
-            <span className="metrics-group-dot" style={{ background: 'var(--muted)' }} />
-            {t('physicalAsset')}
-          </span>
-          <span className="metrics-group-total">{fmt(tFisik)}</span>
-        </div>
-        <div className="metrics-grid">
-          <div className="metric-card metric-fisik">
-            <div className="metric-label">{t('totalBuyPrice')}</div>
-            <div className="metric-value">{fmt(tFisik)}</div>
-            <div className="metric-sub">{fisik.length} {t('items')}</div>
           </div>
         </div>
-      </div>
 
-      {/* Alokasi */}
-      <div className="alloc-card">
-        <h3 className="alloc-title">{t('assetAllocation')}</h3>
-        <div className="alloc-group-label">{t('nonLiquid')}</div>
-        <AllocSection group="invest" />
-        <div className="alloc-divider" />
-        <div className="alloc-group-label">{t('liquid')}</div>
-        <AllocSection group="liquid" />
-        <div className="alloc-divider" />
-        <div className="alloc-group-label">{t('physical')}</div>
-        <AllocSection group="fisik" />
+        {/* Alokasi — kolom kanan */}
+        <div className="dash-side">
+          <div className="alloc-card" style={{ marginTop: 0 }}>
+            <h3 className="alloc-title">{t('assetAllocation')}</h3>
+            <div className="alloc-group-label">{t('nonLiquid')}</div>
+            <AllocSection group="invest" />
+            <div className="alloc-divider" />
+            <div className="alloc-group-label">{t('liquid')}</div>
+            <AllocSection group="liquid" />
+            <div className="alloc-divider" />
+            <div className="alloc-group-label">{t('physical')}</div>
+            <AllocSection group="fisik" />
+          </div>
+        </div>
       </div>
     </div>
   )
