@@ -51,8 +51,11 @@ export default function Dashboard({ session }) {
     if (error) { console.error('fetchTabs:', error); setTabsLoaded(true); return }
 
     if (rows && rows.length > 0) {
-      setTabs(rows)
-      setActiveTab(prev => rows.find(t => t.id === prev) ? prev : rows[0].id)
+      const old = rows.find(t => t.type === 'summary' && t.label === 'Ringkasan')
+      const finalRows = old ? rows.map(t => t.id === old.id ? { ...t, label: 'Dashboard' } : t) : rows
+      if (old) supabase.from('tab_configs').update({ label: 'Dashboard' }).eq('id', old.id).eq('user_id', uid)
+      setTabs(finalRows)
+      setActiveTab(prev => finalRows.find(t => t.id === prev) ? prev : finalRows[0].id)
     } else {
       const { data: seeded, error: seedErr } = await supabase
         .from('tab_configs')
@@ -195,7 +198,7 @@ export default function Dashboard({ session }) {
                 </button>
               )}
 
-              <div className="tabnav-menu-wrap">
+              {t.type !== 'summary' && <div className="tabnav-menu-wrap">
                 <button
                   className={`tabnav-menu-btn ${tabMenuId === t.id ? 'open' : ''}`}
                   onClick={e => {
@@ -207,7 +210,7 @@ export default function Dashboard({ session }) {
                   }}
                   title="Opsi tab"
                 >⋮</button>
-              </div>
+              </div>}
             </div>
           ))}
         </div>

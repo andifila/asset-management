@@ -527,6 +527,7 @@ tbody tr:hover .actions .row-actions { opacity: 1; }
 .physical-rank-info { flex: 1; min-width: 0; }
 .physical-rank-name { font-size: 0.78rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .physical-rank-val { font-size: 0.7rem; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 1px; }
+.rank-val-sub { display: block; font-size: 0.62rem; opacity: 0.75; }
 .physical-rank-empty { font-size: 0.75rem; color: var(--muted); text-align: center; padding: 1.5rem 0; line-height: 1.6; }
 
 /* HARGA PER BULAN */

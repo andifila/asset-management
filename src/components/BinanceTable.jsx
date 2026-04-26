@@ -335,6 +335,7 @@ export default function BinanceTable({ data, uid, onRefresh, showToast }) {
                   <div className="physical-rank-name">{item.symbol}</div>
                   <div className={`physical-rank-val ${item.pnlPct >= 0 ? 'pos' : 'neg'}`}>
                     {sign}{item.pnlPct.toFixed(2)}%
+                    <span className="rank-val-sub">{fmtPnl(Number(item.aktual) - Number(item.saldo))}</span>
                   </div>
                 </div>
               </div>
