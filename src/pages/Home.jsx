@@ -43,7 +43,7 @@ const MODULES = [
     descId: 'Dokumentasi pendakian, jalur, dan logistik gunung.',
     descEn: 'Document hikes, trails, and mountain logistics.',
     color: 'var(--purple)',
-    available: false,
+    available: true,
   },
 ]
 
