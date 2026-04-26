@@ -57,24 +57,12 @@ export default function Summary({ data, uid, onRefresh, showToast }) {
   ]
 
   const allocs = [
-    { label: 'BIBIT',   val: tBibitAktual, color: 'var(--blue)',   group: 'invest' },
-    { label: 'Binance', val: tBinAktual,   color: 'var(--amber)',  group: 'invest' },
-    { label: 'Kas',     val: tKas,         color: 'var(--green)',  group: 'liquid' },
-    { label: 'JHT',     val: tJHT,         color: 'var(--purple)', group: 'liquid' },
-    { label: t('physical'), val: tFisik,   color: 'var(--muted)',  group: 'fisik'  },
-  ]
-
-  const AllocSection = ({ group }) => allocs.filter(a => a.group === group).map(a => {
-    const pct = tAsset > 0 ? (a.val / tAsset) * 100 : 0
-    return (
-      <div key={a.label} className="alloc-row">
-        <div className="alloc-name"><span className="alloc-dot" style={{ background: a.color }} />{a.label}</div>
-        <div className="alloc-track"><div className="alloc-bar" style={{ width: `${pct}%`, background: a.color }} /></div>
-        <span className="alloc-pct">{pct.toFixed(1)}%</span>
-        <span className="alloc-val">{fmt(a.val)}</span>
-      </div>
-    )
-  })
+    { label: 'BIBIT',   val: tBibitAktual, color: 'var(--blue)',   },
+    { label: 'Binance', val: tBinAktual,   color: 'var(--amber)',  },
+    { label: 'Kas',     val: tKas,         color: 'var(--green)',  },
+    { label: 'JHT',     val: tJHT,         color: 'var(--purple)', },
+    { label: t('physical'), val: tFisik,   color: 'var(--muted)',  },
+  ].sort((a, b) => b.val - a.val)
 
   return (
     <div>
@@ -181,14 +169,17 @@ export default function Summary({ data, uid, onRefresh, showToast }) {
         <div className="dash-side">
           <div className="alloc-card" style={{ marginTop: 0 }}>
             <h3 className="alloc-title">{t('assetAllocation')}</h3>
-            <div className="alloc-group-label">{t('nonLiquid')}</div>
-            <AllocSection group="invest" />
-            <div className="alloc-divider" />
-            <div className="alloc-group-label">{t('liquid')}</div>
-            <AllocSection group="liquid" />
-            <div className="alloc-divider" />
-            <div className="alloc-group-label">{t('physical')}</div>
-            <AllocSection group="fisik" />
+            {allocs.map(a => {
+              const pct = tAsset > 0 ? (a.val / tAsset) * 100 : 0
+              return (
+                <div key={a.label} className="alloc-row">
+                  <div className="alloc-name"><span className="alloc-dot" style={{ background: a.color }} />{a.label}</div>
+                  <div className="alloc-track"><div className="alloc-bar" style={{ width: `${pct}%`, background: a.color }} /></div>
+                  <span className="alloc-pct">{pct.toFixed(1)}%</span>
+                  <span className="alloc-val">{fmt(a.val)}</span>
+                </div>
+              )
+            })}
           </div>
         </div>
       </div>

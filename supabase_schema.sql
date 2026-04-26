@@ -96,3 +96,87 @@ CREATE TRIGGER t1 BEFORE UPDATE ON bibit_assets    FOR EACH ROW EXECUTE FUNCTION
 CREATE TRIGGER t2 BEFORE UPDATE ON binance_assets  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER t3 BEFORE UPDATE ON physical_assets FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER t4 BEFORE UPDATE ON liquid_assets   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- =============================================
+-- MODULE TABLES (Service, Itinerary, Hiking)
+-- =============================================
+
+CREATE TABLE IF NOT EXISTS vehicles (
+  id           UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id      UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  name         TEXT NOT NULL,
+  type         TEXT NOT NULL DEFAULT 'motor',
+  plate        TEXT,
+  year         INTEGER,
+  km_current   INTEGER NOT NULL DEFAULT 0,
+  parts_config JSONB,
+  created_at   TIMESTAMPTZ DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS service_records (
+  id             UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id        UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  vehicle_id     UUID REFERENCES vehicles(id) ON DELETE CASCADE,
+  service_date   DATE NOT NULL,
+  km_at_service  INTEGER,
+  service_type   TEXT NOT NULL,
+  product_used   TEXT,
+  shop           TEXT,
+  cost           INTEGER NOT NULL DEFAULT 0,
+  notes          TEXT,
+  created_at     TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS trips (
+  id                    UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id               UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  destination           TEXT NOT NULL,
+  start_date            DATE NOT NULL,
+  end_date              DATE NOT NULL,
+  people_count          INTEGER NOT NULL DEFAULT 1,
+  est_budget_per_person NUMERIC(18,2) NOT NULL DEFAULT 0,
+  status                TEXT NOT NULL DEFAULT 'upcoming',
+  itinerary             JSONB,
+  notes                 TEXT,
+  created_at            TIMESTAMPTZ DEFAULT NOW(),
+  updated_at            TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS hikes (
+  id         UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id    UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  mountain   TEXT NOT NULL,
+  elevation  INTEGER,
+  city       TEXT,
+  start_date DATE NOT NULL,
+  end_date   DATE,
+  route      TEXT,
+  status     TEXT NOT NULL DEFAULT 'summit',
+  members    INTEGER NOT NULL DEFAULT 1,
+  photos_url TEXT,
+  notes      TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- RLS
+ALTER TABLE vehicles        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE service_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE trips            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE hikes            ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "own" ON vehicles        FOR ALL USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);
+CREATE POLICY "own" ON service_records FOR ALL USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);
+CREATE POLICY "own" ON trips            FOR ALL USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);
+CREATE POLICY "own" ON hikes            FOR ALL USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);
+
+-- =============================================
+-- MIGRATION: add columns to existing tables
+-- Run if tables already exist (safe to re-run)
+-- =============================================
+
+ALTER TABLE vehicles        ADD COLUMN IF NOT EXISTS type         TEXT NOT NULL DEFAULT 'motor';
+ALTER TABLE vehicles        ADD COLUMN IF NOT EXISTS parts_config JSONB;
+ALTER TABLE service_records ADD COLUMN IF NOT EXISTS product_used TEXT;
+ALTER TABLE hikes            ADD COLUMN IF NOT EXISTS city         TEXT;
+ALTER TABLE hikes            ADD COLUMN IF NOT EXISTS photos_url   TEXT;

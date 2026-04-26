@@ -30,8 +30,8 @@ const MODULES = [
     icon: '✈',
     titleId: 'Itinerary',
     titleEn: 'Itinerary',
-    descId: 'Rencanakan perjalanan, budget, dan jadwal trip.',
-    descEn: 'Plan your trips, budgets, and travel schedules.',
+    descId: 'Milestone tempat-tempat yang pernah kamu datangi.',
+    descEn: 'Milestone of places you have visited.',
     color: 'var(--green)',
     available: true,
   },
@@ -40,49 +40,107 @@ const MODULES = [
     icon: '▲',
     titleId: 'Mountain Hiking',
     titleEn: 'Mountain Hiking',
-    descId: 'Dokumentasi pendakian, jalur, dan logistik gunung.',
-    descEn: 'Document hikes, trails, and mountain logistics.',
+    descId: 'Milestone gunung-gunung yang pernah kamu daki.',
+    descEn: 'Milestone of mountains you have climbed.',
     color: 'var(--purple)',
     available: true,
   },
 ]
 
-const QUICK_ACTIONS = [
-  { labelId: '+ Liquid',    labelEn: '+ Liquid',    tabType: 'kas'     },
-  { labelId: '+ BIBIT',     labelEn: '+ BIBIT',     tabType: 'bibit'   },
-  { labelId: '+ Crypto',    labelEn: '+ Crypto',    tabType: 'binance' },
-  { labelId: '+ Aset Fisik',labelEn: '+ Physical',  tabType: 'fisik'   },
-]
+const fmtDate = d => d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : null
 
 export default function Home({ session, onModule }) {
   const { lang } = useLang()
   const [assetTotal, setAssetTotal] = useState(null)
-  const uid = session.user.id
+  const [showAssets, setShowAssets] = useState(() => localStorage.getItem('showAssets') !== 'false')
+  const [lastService, setLastService] = useState(null)
+  const [lastTrip,    setLastTrip]    = useState(null)
+  const [lastHike,    setLastHike]    = useState(null)
+
+  const uid  = session.user.id
   const name = session.user.user_metadata?.full_name?.split(' ')[0] || 'Kamu'
   const avatar = session.user.user_metadata?.avatar_url
 
+  const toggleAssets = () => {
+    setShowAssets(prev => {
+      localStorage.setItem('showAssets', !prev)
+      return !prev
+    })
+  }
+
   useEffect(() => {
-    const fetchTotal = async () => {
-      const [bibit, binance, fisik, kas, jht] = await Promise.all([
+    const fetchAll = async () => {
+      const [bibit, binance, fisik, kas, jht, svc, trip, hike] = await Promise.all([
         supabase.from('bibit_assets').select('aktual').eq('user_id', uid),
         supabase.from('binance_assets').select('aktual').eq('user_id', uid),
         supabase.from('physical_assets').select('buy_price').eq('user_id', uid),
         supabase.from('liquid_assets').select('jumlah').eq('user_id', uid),
         supabase.from('jht_assets').select('jumlah').eq('user_id', uid).maybeSingle(),
+        supabase.from('service_records').select('service_date, service_type, shop')
+          .eq('user_id', uid).order('service_date', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from('trips').select('destination, end_date')
+          .eq('user_id', uid).eq('status', 'done')
+          .order('end_date', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from('hikes').select('mountain, start_date, elevation')
+          .eq('user_id', uid).order('start_date', { ascending: false }).limit(1).maybeSingle(),
       ])
+
       const sum = (rows, key) => (rows.data || []).reduce((s, r) => s + Number(r[key] || 0), 0)
-      const total =
-        sum(bibit, 'aktual') +
-        sum(binance, 'aktual') +
-        sum(fisik, 'buy_price') +
-        sum(kas, 'jumlah') +
-        Number(jht.data?.jumlah || 0)
-      setAssetTotal(total)
+      setAssetTotal(
+        sum(bibit, 'aktual') + sum(binance, 'aktual') +
+        sum(fisik, 'buy_price') + sum(kas, 'jumlah') + Number(jht.data?.jumlah || 0)
+      )
+      setLastService(svc.data || null)
+      setLastTrip(trip.data || null)
+      setLastHike(hike.data || null)
     }
-    fetchTotal()
+    fetchAll()
   }, [uid])
 
   const logout = () => supabase.auth.signOut()
+
+  const getModuleStat = (mod) => {
+    if (mod.id === 'asset') {
+      return {
+        label: lang === 'id' ? 'Total Aset' : 'Total Assets',
+        val: assetTotal === null ? '...' : (showAssets ? fmt(assetTotal) : '••••••'),
+        extra: (
+          <button
+            className="asset-eye-btn"
+            onClick={e => { e.stopPropagation(); toggleAssets() }}
+            title={showAssets ? 'Sembunyikan' : 'Tampilkan'}
+          >
+            {showAssets ? '👁' : '🙈'}
+          </button>
+        ),
+      }
+    }
+    if (mod.id === 'service') {
+      if (!lastService) return null
+      return {
+        label: 'Servis Terakhir',
+        val: lastService.service_type,
+        sub: fmtDate(lastService.service_date),
+      }
+    }
+    if (mod.id === 'itinerary') {
+      if (!lastTrip) return null
+      return {
+        label: 'Terakhir Dikunjungi',
+        val: lastTrip.destination,
+        sub: fmtDate(lastTrip.end_date),
+      }
+    }
+    if (mod.id === 'hiking') {
+      if (!lastHike) return null
+      return {
+        label: 'Gunung Terakhir',
+        val: lastHike.mountain,
+        sub: lastHike.elevation ? `▲ ${lastHike.elevation.toLocaleString('id-ID')} mdpl · ${fmtDate(lastHike.start_date)}` : fmtDate(lastHike.start_date),
+      }
+    }
+    return null
+  }
 
   return (
     <div className="home-wrap">
@@ -90,6 +148,7 @@ export default function Home({ session, onModule }) {
         <div className="topbar-brand">◈ <span>MySpace</span></div>
         <div className="topbar-right">
           {avatar && <img src={avatar} className="avatar" alt="avatar" referrerPolicy="no-referrer" />}
+          <span className="topbar-name">{name}</span>
           <button className="btn-logout" onClick={logout}>
             {lang === 'id' ? 'Keluar' : 'Logout'}
           </button>
@@ -107,57 +166,45 @@ export default function Home({ session, onModule }) {
         </div>
 
         <div className="module-grid">
-          {MODULES.map(mod => (
-            <div
-              key={mod.id}
-              className={`module-card${mod.available ? ' module-available' : ' module-soon'}`}
-              onClick={() => mod.available && onModule(mod.id)}
-              style={{ '--mod-color': mod.color }}
-            >
-              <div className="module-card-top">
-                <div className="module-icon" style={{ color: mod.color }}>{mod.icon}</div>
-                <span className={`module-badge ${mod.available ? 'badge-active' : 'badge-soon'}`}>
-                  {mod.available
-                    ? (lang === 'id' ? 'Aktif' : 'Active')
-                    : (lang === 'id' ? 'Segera' : 'Soon')}
-                </span>
-              </div>
-              <div className="module-title">{lang === 'id' ? mod.titleId : mod.titleEn}</div>
-              <div className="module-desc">{lang === 'id' ? mod.descId : mod.descEn}</div>
-
-              {mod.id === 'asset' && (
-                <div className="module-stat">
-                  <span className="module-stat-label">{lang === 'id' ? 'Total Aset' : 'Total Assets'}</span>
-                  <span className="module-stat-val">
-                    {assetTotal === null ? '...' : fmt(assetTotal)}
+          {MODULES.map(mod => {
+            const stat = getModuleStat(mod)
+            return (
+              <div
+                key={mod.id}
+                className={`module-card${mod.available ? ' module-available' : ' module-soon'}`}
+                onClick={() => mod.available && onModule(mod.id)}
+                style={{ '--mod-color': mod.color }}
+              >
+                <div className="module-card-top">
+                  <div className="module-icon" style={{ color: mod.color }}>{mod.icon}</div>
+                  <span className={`module-badge ${mod.available ? 'badge-active' : 'badge-soon'}`}>
+                    {mod.available
+                      ? (lang === 'id' ? 'Aktif' : 'Active')
+                      : (lang === 'id' ? 'Segera' : 'Soon')}
                   </span>
                 </div>
-              )}
+                <div className="module-title">{lang === 'id' ? mod.titleId : mod.titleEn}</div>
+                <div className="module-desc">{lang === 'id' ? mod.descId : mod.descEn}</div>
 
-              <div className="module-cta">
-                {mod.available
-                  ? (lang === 'id' ? 'Buka Modul →' : 'Open Module →')
-                  : (lang === 'id' ? 'Belum tersedia' : 'Not available yet')}
+                {stat && (
+                  <div className="module-stat">
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                      <span className="module-stat-label">{stat.label}</span>
+                      {stat.extra}
+                    </div>
+                    <span className="module-stat-val">{stat.val}</span>
+                    {stat.sub && <div style={{ fontSize: '0.65rem', color: 'var(--muted)', marginTop: 2 }}>{stat.sub}</div>}
+                  </div>
+                )}
+
+                <div className="module-cta">
+                  {mod.available
+                    ? (lang === 'id' ? 'Buka Modul →' : 'Open Module →')
+                    : (lang === 'id' ? 'Belum tersedia' : 'Not available yet')}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="quick-section">
-          <div className="quick-section-title">
-            {lang === 'id' ? 'Quick Actions — Asset Tracking' : 'Quick Actions — Asset Tracking'}
-          </div>
-          <div className="quick-actions">
-            {QUICK_ACTIONS.map(a => (
-              <button
-                key={a.tabType}
-                className="quick-action-btn"
-                onClick={() => onModule('asset', a.tabType)}
-              >
-                {lang === 'id' ? a.labelId : a.labelEn}
-              </button>
-            ))}
-          </div>
+            )
+          })}
         </div>
       </main>
     </div>
