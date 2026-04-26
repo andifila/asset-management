@@ -20,7 +20,7 @@ const DEFAULT_TABS = [
   { label: 'Aset Liquid', type: 'kas',     position: 4 },
 ]
 
-export default function Dashboard({ session }) {
+export default function Dashboard({ session, onHome, defaultTabType }) {
   const [tabs, setTabs]           = useState([])
   const [tabsLoaded, setTabsLoaded] = useState(false)
   const [activeTab, setActiveTab] = useState(null)
@@ -55,7 +55,8 @@ export default function Dashboard({ session }) {
       const finalRows = old ? rows.map(t => t.id === old.id ? { ...t, label: 'Dashboard' } : t) : rows
       if (old) supabase.from('tab_configs').update({ label: 'Dashboard' }).eq('id', old.id).eq('user_id', uid)
       setTabs(finalRows)
-      setActiveTab(prev => finalRows.find(t => t.id === prev) ? prev : finalRows[0].id)
+      const preferred = defaultTabType && finalRows.find(t => t.type === defaultTabType)
+      setActiveTab(prev => preferred ? preferred.id : finalRows.find(t => t.id === prev) ? prev : finalRows[0].id)
     } else {
       const { data: seeded, error: seedErr } = await supabase
         .from('tab_configs')
@@ -157,8 +158,11 @@ export default function Dashboard({ session }) {
   return (
     <div className="app">
       <header className="topbar">
-        <div className="topbar-brand">◈ <span>Asset Tracker</span></div>
+        <div className="topbar-brand" style={{ cursor: onHome ? 'pointer' : 'default' }} onClick={onHome}>
+          ◈ <span>Asset Tracking</span>
+        </div>
         <div className="topbar-right">
+          {onHome && <button className="btn-home" onClick={onHome}>← Home</button>}
           {avatar && <img src={avatar} className="avatar" alt="avatar" referrerPolicy="no-referrer" />}
           <span className="topbar-name">{name}</span>
           <button className="btn-lang" onClick={toggleLang}>

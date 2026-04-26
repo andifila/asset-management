@@ -23,8 +23,8 @@ export default function Login() {
     <div className="login-bg">
       <div className="login-card">
         <div className="login-icon">◈</div>
-        <h1 className="login-title">Asset Tracker</h1>
-        <p className="login-sub">Monitor portofolio kamu dengan aman</p>
+        <h1 className="login-title">MySpace</h1>
+        <p className="login-sub">Ruang pribadimu — aset, kendaraan, perjalanan & lebih</p>
 
         <div className="login-features">
           <div className="feature-item"><span className="feature-dot" />Data tersimpan di cloud</div>
