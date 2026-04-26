@@ -4,6 +4,7 @@ import { supabase } from './lib/supabase'
 import Login from './pages/Login'
 import Home from './pages/Home'
 import Dashboard from './pages/Dashboard'
+import VehicleService from './pages/VehicleService'
 import { LangProvider } from './lib/LangContext'
 
 export default function App() {
@@ -34,7 +35,8 @@ export default function App() {
     <LangProvider>
       {!session && <Login />}
       {session && module === null  && <Home session={session} onModule={goModule} />}
-      {session && module === 'asset' && <Dashboard session={session} onHome={goHome} defaultTabType={tabType} />}
+      {session && module === 'asset'   && <Dashboard session={session} onHome={goHome} defaultTabType={tabType} />}
+      {session && module === 'service' && <VehicleService session={session} onHome={goHome} />}
     </LangProvider>
   )
 }

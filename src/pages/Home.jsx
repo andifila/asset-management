@@ -23,7 +23,7 @@ const MODULES = [
     descId: 'Catat servis motor & mobil, jadwal, dan biaya.',
     descEn: 'Log vehicle service history, schedules, and costs.',
     color: 'var(--amber)',
-    available: false,
+    available: true,
   },
   {
     id: 'itinerary',

@@ -667,6 +667,84 @@ th.sortable.sorted .sort-icon { opacity: 1; color: var(--blue); }
   .physical-rank-panel { width: 100%; }
 }
 
+/* SERVICE KENDARAAN */
+.svc-vehicle-card {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 1.125rem 1.25rem;
+  margin-bottom: 1.25rem;
+}
+.svc-vehicle-left { display: flex; align-items: center; gap: 1rem; }
+.svc-vehicle-icon { font-size: 2rem; color: var(--amber); line-height: 1; }
+.svc-vehicle-name { font-size: 1rem; font-weight: 700; color: var(--text); }
+.svc-vehicle-meta { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+.svc-vehicle-year { font-size: 0.78rem; color: var(--muted); }
+
+.svc-km-block { text-align: right; }
+.svc-km-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 4px; }
+.svc-km-val {
+  display: flex; align-items: baseline; gap: 5px; justify-content: flex-end;
+  font-family: 'DM Mono', monospace; font-size: 1.5rem; font-weight: 600;
+  color: var(--blue); cursor: pointer;
+}
+.svc-km-val:hover { opacity: 0.85; }
+.svc-km-unit { font-size: 0.75rem; color: var(--muted); font-family: 'Sora', sans-serif; font-weight: 400; }
+.svc-km-edit-hint { font-size: 0.65rem; color: var(--muted); opacity: 0.4; margin-left: 2px; }
+.svc-km-val:hover .svc-km-edit-hint { opacity: 1; }
+.svc-km-input {
+  width: 110px; padding: 0.3rem 0.6rem;
+  font-family: 'DM Mono', monospace; font-size: 1.2rem;
+  background: var(--bg3); border: 1px solid var(--blue);
+  border-radius: var(--radius); color: var(--text);
+}
+.svc-km-input:focus { outline: none; }
+
+.svc-status-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-bottom: 1.5rem;
+}
+.svc-status-card {
+  border: 1px solid;
+  border-radius: var(--radius);
+  padding: 0.875rem 1rem;
+}
+.svc-status-top {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 6px;
+}
+.svc-status-icon { font-size: 1rem; line-height: 1; }
+.svc-status-badge { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.svc-status-name { font-size: 0.78rem; font-weight: 600; color: var(--text); margin-bottom: 5px; }
+.svc-status-meta { font-size: 0.68rem; color: var(--muted); margin-bottom: 8px; line-height: 1.5; }
+.svc-status-progress { display: flex; align-items: center; gap: 6px; }
+.svc-status-bar { flex: 1; height: 4px; background: rgba(255,255,255,0.07); border-radius: 2px; overflow: hidden; }
+.svc-status-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+.svc-status-pct { font-family: 'DM Mono', monospace; font-size: 0.62rem; min-width: 28px; text-align: right; }
+
+.svc-km-cell { font-family: 'DM Mono', monospace; font-size: 0.78rem; }
+
+.svc-quick-types { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.svc-quick-type-btn {
+  background: var(--bg3); border: 1px solid var(--border2);
+  border-radius: 4px; color: var(--muted);
+  padding: 0.2rem 0.6rem; font-size: 0.7rem;
+  cursor: pointer; transition: color 0.12s, border-color 0.12s;
+  font-family: 'Sora', sans-serif;
+}
+.svc-quick-type-btn:hover { color: var(--amber); border-color: rgba(233,162,41,0.4); }
+
+@media (max-width: 900px) {
+  .svc-status-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 600px) {
+  .svc-status-grid { grid-template-columns: repeat(2, 1fr); }
+  .svc-vehicle-card { flex-direction: column; align-items: flex-start; gap: 1rem; }
+  .svc-km-block { text-align: left; }
+  .svc-km-val { justify-content: flex-start; }
+}
+
 @media (max-width: 600px) {
   .field-row { grid-template-columns: 1fr; }
   .alloc-row { grid-template-columns: 60px 1fr 40px; }
