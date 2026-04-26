@@ -239,17 +239,21 @@ body {
 /* DASHBOARD 2-COLUMN LAYOUT */
 .dash-grid {
   display: grid;
-  grid-template-columns: 1fr 252px;
+  grid-template-columns: 1fr 268px;
   gap: 14px;
   align-items: start;
 }
 .dash-main { display: flex; flex-direction: column; gap: 10px; }
 .dash-main .metrics-group { margin-bottom: 0; }
-.dash-side { position: sticky; top: 104px; }
 
-@media (max-width: 860px) {
+/* Alloc panel di kolom kanan: sembunyikan kolom amount (sudah ada di metric cards) */
+.dash-side .alloc-row   { grid-template-columns: 62px 1fr 38px; }
+.dash-side .alloc-val   { display: none; }
+
+@media (max-width: 900px) {
   .dash-grid { grid-template-columns: 1fr; }
-  .dash-side { position: static; }
+  .dash-side .alloc-row { grid-template-columns: 70px 1fr 44px 110px; }
+  .dash-side .alloc-val { display: block; }
 }
 .loading-state { text-align: center; color: var(--muted); padding: 3rem; font-size: 0.85rem; }
 
