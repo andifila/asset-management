@@ -33,7 +33,7 @@ const MODULES = [
     descId: 'Rencanakan perjalanan, budget, dan jadwal trip.',
     descEn: 'Plan your trips, budgets, and travel schedules.',
     color: 'var(--green)',
-    available: false,
+    available: true,
   },
   {
     id: 'hiking',
