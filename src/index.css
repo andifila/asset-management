@@ -246,12 +246,19 @@ body {
 .dash-main { display: flex; flex-direction: column; gap: 10px; }
 .dash-main .metrics-group { margin-bottom: 0; }
 
+/* Kolom kiri: paksa 2 kolom metric agar tidak ada gap kosong */
+.dash-main .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+/* Card fisik (1 item) span penuh agar tidak ada setengah baris kosong */
+.dash-main .metric-fisik { grid-column: 1 / -1; }
+
 /* Alloc panel di kolom kanan: sembunyikan kolom amount (sudah ada di metric cards) */
-.dash-side .alloc-row   { grid-template-columns: 62px 1fr 38px; }
-.dash-side .alloc-val   { display: none; }
+.dash-side .alloc-row { grid-template-columns: 62px 1fr 38px; }
+.dash-side .alloc-val { display: none; }
 
 @media (max-width: 900px) {
   .dash-grid { grid-template-columns: 1fr; }
+  .dash-main .metrics-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+  .dash-main .metric-fisik { grid-column: auto; }
   .dash-side .alloc-row { grid-template-columns: 70px 1fr 44px 110px; }
   .dash-side .alloc-val { display: block; }
 }
