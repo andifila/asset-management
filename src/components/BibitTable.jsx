@@ -25,6 +25,12 @@ export default function BibitTable({ data, uid, onRefresh, showToast }) {
   const tSaldo  = data.reduce((s, r) => s + Number(r.saldo), 0)
   const tAktual = data.reduce((s, r) => s + Number(r.aktual), 0)
 
+  const top3 = [...data]
+    .filter(r => Number(r.saldo) > 0)
+    .map(r => ({ ...r, pnlPct: (Number(r.aktual) - Number(r.saldo)) / Number(r.saldo) * 100 }))
+    .sort((a, b) => b.pnlPct - a.pnlPct)
+    .slice(0, 3)
+
   // Profit ranking: top 3 by PnL%
   const profitRanks = (() => {
     const map = {}
@@ -130,6 +136,7 @@ export default function BibitTable({ data, uid, onRefresh, showToast }) {
         <ConfirmModal name={confirmItem.nama_aset} onConfirm={del} onCancel={() => setConfirmItem(null)} loading={deleting} />
       )}
 
+      <div className="physical-layout">
       <div className="table-wrap">
         <table>
           <thead><tr>
@@ -177,6 +184,31 @@ export default function BibitTable({ data, uid, onRefresh, showToast }) {
             <td />
           </tr></tfoot>
         </table>
+      </div>
+
+      <div className="physical-rank-panel">
+        <div className="physical-rank-title">{t('profitRank')}</div>
+        <div className="physical-rank-sub">{t('topProfitSub')}</div>
+        {top3.length === 0 ? (
+          <div className="physical-rank-empty">{t('noData')}</div>
+        ) : (
+          top3.map((item, i) => {
+            const cls = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : 'rank-3'
+            const sign = item.pnlPct >= 0 ? '+' : ''
+            return (
+              <div key={item.id} className="physical-rank-item">
+                <span className={`rank-badge ${cls}`}>#{i + 1}</span>
+                <div className="physical-rank-info">
+                  <div className="physical-rank-name">{item.nama_aset}</div>
+                  <div className={`physical-rank-val ${item.pnlPct >= 0 ? 'pos' : 'neg'}`}>
+                    {sign}{item.pnlPct.toFixed(2)}%
+                  </div>
+                </div>
+              </div>
+            )
+          })
+        )}
+      </div>
       </div>
     </div>
   )

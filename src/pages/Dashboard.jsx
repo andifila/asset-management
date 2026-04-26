@@ -13,7 +13,7 @@ import { useLang } from '../lib/LangContext'
 const TAB_ICONS = { summary: '◈', bibit: '↗', binance: '◆', fisik: '⬡', kas: '◎', custom: '○' }
 
 const DEFAULT_TABS = [
-  { label: 'Ringkasan',   type: 'summary', position: 0 },
+  { label: 'Dashboard',   type: 'summary', position: 0 },
   { label: 'BIBIT',       type: 'bibit',   position: 1 },
   { label: 'Binance',     type: 'binance', position: 2 },
   { label: 'Aset Fisik',  type: 'fisik',   position: 3 },
@@ -219,13 +219,13 @@ export default function Dashboard({ session }) {
           const idx = tabs.findIndex(t => t.id === tabMenuId)
           return (
             <div className="tabnav-menu-dropdown" style={{ position: 'fixed', top: menuPos.top, right: menuPos.right }}>
-              {idx > 0 && (
+              {tab.type !== 'summary' && idx > 0 && (
                 <button className="tabnav-menu-item" onClick={() => moveTab(tab, -1)}>← Pindah Kiri</button>
               )}
-              {idx < tabs.length - 1 && (
+              {tab.type !== 'summary' && idx < tabs.length - 1 && (
                 <button className="tabnav-menu-item" onClick={() => moveTab(tab, 1)}>→ Pindah Kanan</button>
               )}
-              {(idx > 0 || idx < tabs.length - 1) && <div className="tabnav-menu-divider" />}
+              {tab.type !== 'summary' && (idx > 0 || idx < tabs.length - 1) && <div className="tabnav-menu-divider" />}
               <button className="tabnav-menu-item" onClick={() => startRename(tab.id, tab.label)}>✏ Rename</button>
             </div>
           )
