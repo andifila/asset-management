@@ -228,7 +228,7 @@ export default function Itinerary({ session, onHome }) {
   const ongoing   = trips.filter(t => effectiveStatus(t) === 'ongoing')
   const upcoming  = trips.filter(t => effectiveStatus(t) === 'upcoming')
   const done      = trips.filter(t => effectiveStatus(t) === 'done')
-  const milestones = trips.filter(t => ['done', 'cancelled', 'optional'].includes(effectiveStatus(t)) || isPastTrip(t))
+  const milestones = trips.filter(t => ['done', 'cancelled', 'optional'].includes(effectiveStatus(t)))
 
   const year2026 = trips
     .filter(t => {
@@ -257,18 +257,28 @@ export default function Itinerary({ session, onHome }) {
   }).length
   const tripDelta = tripsThisMonth - tripsLastMonth
 
-  const totalCostThisYear = trips
-    .filter(t => t.start_date?.slice(0, 4) === String(CURRENT_YEAR) && t.est_budget_per_person > 0)
-    .reduce((sum, t) => sum + t.est_budget_per_person * (t.people_count || 1), 0)
+  const doneTripsList = trips.filter(t => effectiveStatus(t) === 'done')
 
-  const tripsWithBudget = trips.filter(t => t.est_budget_per_person > 0)
-  const avgCostPerTrip = tripsWithBudget.length
-    ? Math.round(tripsWithBudget.reduce((s, t) => s + t.est_budget_per_person, 0) / tripsWithBudget.length)
-    : 0
+  const totalDaysTraveled = doneTripsList.reduce((sum, t) => {
+    if (!t.start_date || !t.end_date) return sum
+    const [y1,m1,d1] = t.start_date.split('-'), [y2,m2,d2] = t.end_date.split('-')
+    return sum + Math.round((new Date(+y2,+m2-1,+d2) - new Date(+y1,+m1-1,+d1)) / 86400000) + 1
+  }, 0)
+
+  const longestTrip = doneTripsList.reduce((best, t) => {
+    if (!t.start_date || !t.end_date) return best
+    const [y1,m1,d1] = t.start_date.split('-'), [y2,m2,d2] = t.end_date.split('-')
+    const days = Math.round((new Date(+y2,+m2-1,+d2) - new Date(+y1,+m1-1,+d1)) / 86400000) + 1
+    return (!best || days > best.days) ? { trip: t, days } : best
+  }, null)
 
   const destCount = {}
   trips.forEach(t => { if (t.destination) destCount[t.destination] = (destCount[t.destination] || 0) + 1 })
   const topDest = Object.entries(destCount).sort((a, b) => b[1] - a[1])[0]
+
+  const totalBudgetDone = doneTripsList
+    .filter(t => t.est_budget_per_person > 0)
+    .reduce((sum, t) => sum + t.est_budget_per_person * (t.people_count || 1), 0)
 
   return (
     <div className="app">
@@ -428,20 +438,33 @@ export default function Itinerary({ session, onHome }) {
             </div>
             <div className="itin-insight-grid">
               <div className="itin-insight-card">
-                <div className="itin-insight-label">Total biaya tahun ini</div>
-                <div className="itin-insight-val">{totalCostThisYear > 0 ? fmtRp(totalCostThisYear) : '—'}</div>
+                <div className="itin-insight-label">Total hari perjalanan</div>
+                <div className="itin-insight-val" style={{ color: '#4a90d9' }}>
+                  {totalDaysTraveled > 0 ? totalDaysTraveled : '—'}
+                  {totalDaysTraveled > 0 && <span style={{ fontSize: '0.7rem', fontWeight: 400, color: 'var(--muted)', marginLeft: 4 }}>hari</span>}
+                </div>
+                <div className="itin-insight-sub">{doneTripsList.length} trip selesai</div>
               </div>
               <div className="itin-insight-card">
-                <div className="itin-insight-label">Rata-rata cost per trip</div>
-                <div className="itin-insight-val">{avgCostPerTrip > 0 ? fmtRp(avgCostPerTrip) + '/orang' : '—'}</div>
+                <div className="itin-insight-label">Trip terlama</div>
+                <div className="itin-insight-val" style={{ color: '#8b7de8' }}>
+                  {longestTrip ? longestTrip.days : '—'}
+                  {longestTrip && <span style={{ fontSize: '0.7rem', fontWeight: 400, color: 'var(--muted)', marginLeft: 4 }}>hari</span>}
+                </div>
+                {longestTrip && <div className="itin-insight-sub">{longestTrip.trip.destination}</div>}
               </div>
               <div className="itin-insight-card">
-                <div className="itin-insight-label">Kota paling sering dikunjungi</div>
-                <div className="itin-insight-val">{topDest ? topDest[0] : '—'}</div>
-                {topDest && topDest[1] > 1 && (
-                  <div className="itin-insight-sub">{topDest[1]}× dikunjungi</div>
-                )}
+                <div className="itin-insight-label">Destinasi favorit</div>
+                <div className="itin-insight-val" style={{ color: '#3dba7e' }}>{topDest ? topDest[0] : '—'}</div>
+                {topDest && <div className="itin-insight-sub">{topDest[1]}× dikunjungi</div>}
               </div>
+              {totalBudgetDone > 0 && (
+                <div className="itin-insight-card">
+                  <div className="itin-insight-label">Total budget trip selesai</div>
+                  <div className="itin-insight-val" style={{ color: '#e9a229' }}>{fmtRp(totalBudgetDone)}</div>
+                  <div className="itin-insight-sub">semua trip selesai</div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -711,7 +734,7 @@ function TripCardUpcoming({ trip, onView, onEdit, onDelete }) {
       )}
 
       <div className="itin-card-footer" onClick={e => e.stopPropagation()}>
-        <span className="itin-card-cta">Lihat detail →</span>
+        <span className="itin-card-cta" onClick={onView}>Lihat detail →</span>
         <div style={{ display: 'flex', gap: 4 }}>
           <button className="btn-icon" onClick={onEdit}>✏</button>
           <button className="btn-icon del" onClick={onDelete}>✕</button>

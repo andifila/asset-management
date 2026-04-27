@@ -778,7 +778,7 @@ th.sortable.sorted .sort-icon { opacity: 1; color: var(--blue); }
 
 /* ITINERARY */
 .itin-stats {
-  display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px;
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
   margin-bottom: 1.25rem;
 }
 .itin-stat {
@@ -1088,6 +1088,18 @@ th.sortable.sorted .sort-icon { opacity: 1; color: var(--blue); }
   font-family: 'DM Mono', monospace; font-weight: 600;
   color: var(--text); font-size: 0.9rem;
 }
+.svc-pagination {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 12px 0 2px;
+}
+.svc-page-btn {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 6px;
+  color: var(--muted); font-size: 0.75rem; padding: 4px 14px; cursor: pointer;
+  transition: border-color 0.12s, color 0.12s;
+}
+.svc-page-btn:disabled { opacity: 0.3; cursor: default; }
+.svc-page-btn:not(:disabled):hover { border-color: var(--blue); color: var(--blue); }
+.svc-page-info { font-size: 0.72rem; color: var(--muted); min-width: 72px; text-align: center; }
 
 /* ===== MOUNTAIN — summit badges & photos ===== */
 .hike-summit-badge {
@@ -1323,6 +1335,26 @@ th.sortable.sorted .sort-icon { opacity: 1; color: var(--blue); }
 .itin-milestone-year { font-size: 0.65rem; color: var(--muted); margin-top: 1px; }
 .itin-milestone-budget { font-family: 'DM Mono', monospace; color: var(--amber); }
 
+/* Travel Insight */
+.itin-insight-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+.itin-insight-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 0.75rem 1rem;
+}
+.itin-insight-label {
+  font-size: 0.65rem; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--muted); margin-bottom: 4px;
+}
+.itin-insight-val {
+  font-size: 1rem; font-weight: 700;
+  font-family: 'DM Mono', monospace; color: var(--text);
+}
+.itin-insight-sub { font-size: 0.65rem; color: var(--muted); margin-top: 2px; }
+
 /* Upcoming card improvements */
 .itin-budget-pill {
   font-family: 'DM Mono', monospace; font-size: 0.72rem;
@@ -1333,10 +1365,10 @@ th.sortable.sorted .sort-icon { opacity: 1; color: var(--blue); }
 /* ===== HOME — eye toggle ===== */
 .asset-eye-btn {
   background: none; border: none; cursor: pointer;
-  font-size: 0.85rem; padding: 0 2px;
-  line-height: 1; opacity: 0.7; transition: opacity 0.15s;
+  font-size: 1rem; padding: 2px 5px; line-height: 1;
+  color: var(--muted); transition: color 0.15s; border-radius: 4px;
 }
-.asset-eye-btn:hover { opacity: 1; }
+.asset-eye-btn:hover { color: var(--text); }
 
 /* ===== RESPONSIVE IMPROVEMENTS ===== */
 
@@ -1382,6 +1414,7 @@ th.sortable.sorted .sort-icon { opacity: 1; color: var(--blue); }
   .itin-stats { grid-template-columns: repeat(3, 1fr); }
   .itin-upcoming-grid { grid-template-columns: 1fr; }
   .itin-milestone-grid { grid-template-columns: 1fr 1fr; }
+  .itin-insight-grid { grid-template-columns: 1fr; }
   .itin-act-row-1 { gap: 3px; }
   .itin-act-row-1 .itin-act-input[type="date"] { min-width: 100px; }
   .itin-act-row-1 .itin-act-input[type="time"] { min-width: 70px; }
