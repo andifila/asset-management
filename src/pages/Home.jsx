@@ -117,9 +117,15 @@ export default function Home({ session, onModule }) {
     }
     if (mod.id === 'service') {
       if (!lastService) return null
+      let svcLabel = lastService.service_type || '—'
+      try {
+        const items = JSON.parse(lastService.service_type)
+        if (Array.isArray(items) && items.length)
+          svcLabel = items.map(i => i.nama).filter(Boolean).join(', ')
+      } catch {}
       return {
         label: 'Servis Terakhir',
-        val: lastService.service_type,
+        val: svcLabel,
         sub: fmtDate(lastService.service_date),
       }
     }

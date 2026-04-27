@@ -53,13 +53,27 @@ const fmtDateRange = (s, e) => {
   return `${dS.toLocaleDateString('id-ID', optShort)} – ${dE.toLocaleDateString('id-ID', optFull)}`
 }
 
+function parseHikeNotes(raw) {
+  if (!raw) return { trail: '', notes: '' }
+  const m = raw.match(/^Jalur: (.+?)(?:\n([\s\S]*))?$/)
+  if (m) return { trail: (m[1] || '').trim(), notes: (m[2] || '').trim() }
+  return { trail: '', notes: raw }
+}
+
+function buildHikeNotes(trail, notes) {
+  const t = (trail || '').trim(), n = (notes || '').trim()
+  if (t && n) return `Jalur: ${t}\n${n}`
+  if (t) return `Jalur: ${t}`
+  return n || null
+}
+
 function hikeDuration(start, end) {
   if (!start || !end) return '—'
   const parse = d => { const [y,m,dd] = d.split('-'); return new Date(+y,+m-1,+dd) }
   const days   = Math.round((parse(end) - parse(start)) / 86400000) + 1
   const nights = days - 1
-  if (nights === 0) return '1 hari (PP)'
-  return `${days}h ${nights}m`
+  if (nights === 0) return 'TekTok'
+  return `${days} hari ${nights} malam`
 }
 
 const SEED_HIKES = [
@@ -71,31 +85,6 @@ const SEED_HIKES = [
   { mountain: 'Penanggungan', elevation: 1653, city: 'Mojokerto',   start_date: '2022-04-17', end_date: '2022-04-17', status: 'summit', notes: null },
 ]
 
-function ElevationChart({ hikes }) {
-  if (!hikes.length) return null
-  const sorted = [...hikes].sort((a, b) => (b.elevation||0) - (a.elevation||0))
-  const maxE = Math.max(...sorted.map(h => h.elevation || 0), 100)
-
-  return (
-    <div className="hike-chart-wrap">
-      <div className="hike-chart">
-        {sorted.map(h => {
-          const pct = ((h.elevation||0) / maxE) * 100
-          const st = STATUS[h.status] || STATUS.summit
-          return (
-            <div key={h.id || h.mountain} className="hike-chart-col" title={`${h.mountain} — ${(h.elevation||0).toLocaleString('id-ID')} mdpl`}>
-              <div className="hike-chart-elev-num">{((h.elevation||0)/1000).toFixed(1)}k</div>
-              <div className="hike-chart-bar-wrap">
-                <div className="hike-chart-bar" style={{ height: `${pct}%`, background: st.color }} />
-              </div>
-              <div className="hike-chart-label">{h.mountain}</div>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
 
 export default function MountainHiking({ session, onHome }) {
   const [hikes,    setHikes]    = useState([])
@@ -146,15 +135,15 @@ export default function MountainHiking({ session, onHome }) {
   }
 
   const parse = d => { if (!d) return 0; const [y,m,dd]=d.split('-'); return new Date(+y,+m-1,+dd) }
-  const totalDays = hikes.reduce((s, h) => s + Math.round((parse(h.end_date) - parse(h.start_date)) / 86400000) + 1, 0)
-  const summits   = hikes.filter(h => h.status === 'summit').length
-  const highest   = hikes.length ? hikes.reduce((a,b) => (a.elevation||0) > (b.elevation||0) ? a : b) : null
+  const summits = hikes.filter(h => h.status === 'summit').length
 
   const sorted  = [...hikes].sort((a, b) =>
     sort === 'elev'
       ? (b.elevation||0) - (a.elevation||0)
       : parse(b.start_date) - parse(a.start_date)
   )
+
+  const top5 = [...hikes].filter(h => h.elevation).sort((a, b) => (b.elevation||0) - (a.elevation||0)).slice(0, 5)
 
   return (
     <div className="app">
@@ -188,27 +177,7 @@ export default function MountainHiking({ session, onHome }) {
               <div className="hike-stat-val" style={{ color: 'var(--green)' }}>{summits}</div>
               <div className="hike-stat-label">Summit</div>
             </div>
-            <div className="hike-stat">
-              <div className="hike-stat-val" style={{ color: 'var(--purple)' }}>
-                {highest ? (highest.elevation||0).toLocaleString('id-ID') : '—'}
-              </div>
-              <div className="hike-stat-label">Tertinggi (mdpl)</div>
-            </div>
-            <div className="hike-stat">
-              <div className="hike-stat-val" style={{ color: 'var(--blue)' }}>{totalDays}</div>
-              <div className="hike-stat-label">Total Hari</div>
-            </div>
           </div>
-
-          {/* Elevation Chart */}
-          {hikes.length > 0 && (
-            <div style={{ marginBottom: '1.5rem' }}>
-              <div className="section-header" style={{ marginBottom: '0.75rem' }}>
-                <div className="section-title">Elevation Chart</div>
-              </div>
-              <ElevationChart hikes={hikes} />
-            </div>
-          )}
 
           {/* Log Pendakian */}
           <div className="section-header">
@@ -216,10 +185,10 @@ export default function MountainHiking({ session, onHome }) {
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <div className="hike-sort-wrap">
                 <button className={`hike-sort-btn${sort === 'date' ? ' active' : ''}`} onClick={() => setSort('date')}>
-                  Terbaru
+                  Tanggal
                 </button>
                 <button className={`hike-sort-btn${sort === 'elev' ? ' active' : ''}`} onClick={() => setSort('elev')}>
-                  Tertinggi
+                  MDPL
                 </button>
               </div>
               <button className="btn-add" onClick={() => { setEditHike(null); setShowAdd(true) }}>
@@ -228,57 +197,102 @@ export default function MountainHiking({ session, onHome }) {
             </div>
           </div>
 
-          <div className="hike-list">
-            {sorted.map(h => {
-              const st     = STATUS[h.status] || STATUS.summit
-              const badges = getHikeBadges(h.mountain)
-              return (
-                <div key={h.id} className="hike-card">
-                  <div className="hike-card-accent" style={{ background: st.color }} />
-                  <div className="hike-card-body">
-                    <div className="hike-card-row1">
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                        <div className="hike-card-name">{h.mountain}</div>
-                        {badges.map(b => (
-                          <span key={b.text} className="hike-summit-badge" style={{ color: b.color, background: b.bg }}>
-                            {b.text}
+          <div className="hike-layout">
+            <div className="table-wrap" style={{ marginBottom: 0 }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Gunung</th>
+                    <th className="num">mdpl</th>
+                    <th>Tanggal</th>
+                    <th>Durasi</th>
+                    <th>Status</th>
+                    <th className="actions" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {sorted.length === 0 ? (
+                    <tr><td colSpan={6} className="empty-state">Belum ada catatan pendakian</td></tr>
+                  ) : sorted.map(h => {
+                    const st     = STATUS[h.status] || STATUS.summit
+                    const badges = getHikeBadges(h.mountain)
+                    const { trail: hTrail, notes: hNotesText } = parseHikeNotes(h.notes)
+                    return (
+                      <tr key={h.id}>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                            <div style={{ width: 3, height: 16, background: st.color, borderRadius: 2, flexShrink: 0 }} />
+                            <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>{h.mountain}</span>
+                            {badges.map(b => (
+                              <span key={b.text} className="hike-summit-badge" style={{ color: b.color, background: b.bg }}>{b.text}</span>
+                            ))}
+                          </div>
+                          {(h.city || hTrail || hNotesText) && (
+                            <div style={{ paddingLeft: 10, marginTop: 2, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                              {h.city      && <span style={{ fontSize: '0.68rem', color: 'var(--muted)' }}>{h.city}</span>}
+                              {hTrail      && <span style={{ fontSize: '0.68rem', color: 'var(--muted)' }}>↑ {hTrail}</span>}
+                              {hNotesText  && <span style={{ fontSize: '0.67rem', color: 'var(--muted)', fontStyle: 'italic' }}>{hNotesText}</span>}
+                            </div>
+                          )}
+                        </td>
+                        <td className="num" style={{ fontFamily: "'DM Mono', monospace", fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                          {h.elevation ? h.elevation.toLocaleString('id-ID') : '—'}
+                        </td>
+                        <td style={{ whiteSpace: 'nowrap' }}>{fmtDateRange(h.start_date, h.end_date)}</td>
+                        <td style={{ whiteSpace: 'nowrap', color: 'var(--muted)', fontSize: '0.78rem' }}>{hikeDuration(h.start_date, h.end_date)}</td>
+                        <td>
+                          <span className="hike-status-badge" style={{ color: st.color, background: st.bg, border: `1px solid ${st.bd}` }}>
+                            {st.label}
                           </span>
-                        ))}
+                        </td>
+                        <td className="actions">
+                          <div className="row-actions">
+                            {h.photos_url && (
+                              <a href={h.photos_url} target="_blank" rel="noopener noreferrer" className="hike-photos-link" onClick={e => e.stopPropagation()}>📷</a>
+                            )}
+                            <button className="btn-icon" onClick={() => { setEditHike(h); setShowAdd(true) }}>✏</button>
+                            <button className="btn-icon del" onClick={() => handleDelete(h.id)}>✕</button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+                {hikes.length > 0 && (
+                  <tfoot>
+                    <tr>
+                      <td colSpan={3} className="muted" style={{ fontSize: '0.72rem' }}>{hikes.length} pendakian · {summits} summit</td>
+                      <td colSpan={3} />
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
+
+            {top5.length > 0 && (
+              <div className="hike-rank-panel">
+                <div className="physical-rank-title" style={{ marginBottom: 10 }}>5 Tertinggi</div>
+                {top5.map((h, i) => {
+                  const st     = STATUS[h.status] || STATUS.summit
+                  const badges = getHikeBadges(h.mountain)
+                  return (
+                    <div key={h.id} className="physical-rank-item">
+                      <span className={`rank-badge rank-${i < 3 ? i + 1 : 'n'}`}>#{i + 1}</span>
+                      <div className="physical-rank-info">
+                        <div className="physical-rank-name">
+                          {h.mountain}
+                          {badges.slice(0, 1).map(b => (
+                            <span key={b.text} className="hike-summit-badge" style={{ color: b.color, background: b.bg, marginLeft: 4 }}>{b.text}</span>
+                          ))}
+                        </div>
+                        <div className="physical-rank-val" style={{ color: st.color }}>
+                          {h.elevation?.toLocaleString('id-ID')} mdpl
+                        </div>
                       </div>
-                      <span className="hike-status-badge" style={{ color: st.color, background: st.bg, border: `1px solid ${st.bd}`, flexShrink: 0 }}>
-                        {st.label}
-                      </span>
                     </div>
-                    <div className="hike-card-elev-row">
-                      <span className="hike-card-elev-num">▲ {(h.elevation||0).toLocaleString('id-ID')} mdpl</span>
-                      {h.city && <span className="hike-card-city">📍 {h.city}</span>}
-                    </div>
-                    <div className="hike-card-meta">
-                      <span>📅 {fmtDateRange(h.start_date, h.end_date)}</span>
-                      <span>⏱ {hikeDuration(h.start_date, h.end_date)}</span>
-                    </div>
-                    {h.notes && <div className="hike-card-notes">{h.notes}</div>}
-                    {h.photos_url && (
-                      <a
-                        href={h.photos_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hike-photos-link"
-                        onClick={e => e.stopPropagation()}
-                      >
-                        📷 Lihat Foto →
-                      </a>
-                    )}
-                  </div>
-                  <div className="hike-card-actions">
-                    <button className="btn-icon" onClick={() => { setEditHike(h); setShowAdd(true) }}>✏</button>
-                    <button className="btn-icon del" onClick={() => handleDelete(h.id)}>✕</button>
-                  </div>
-                </div>
-              )
-            })}
-            {hikes.length === 0 && (
-              <div className="empty-state">Belum ada catatan pendakian</div>
+                  )
+                })}
+              </div>
             )}
           </div>
         </main>
@@ -300,15 +314,17 @@ export default function MountainHiking({ session, onHome }) {
 
 function HikeModal({ hike, uid, onClose, onSaved, showToast }) {
   const today = new Date().toISOString().split('T')[0]
+  const parsed = parseHikeNotes(hike?.notes)
   const [form, setForm] = useState({
     mountain:   hike?.mountain              || '',
     elevation:  hike?.elevation?.toString() || '',
     city:       hike?.city                  || '',
+    trail:      parsed.trail,
     start_date: hike?.start_date            || today,
     end_date:   hike?.end_date              || today,
     status:     hike?.status                || 'summit',
     photos_url: hike?.photos_url            || '',
-    notes:      hike?.notes                 || '',
+    notes:      parsed.notes,
   })
   const [saving, setSaving] = useState(false)
   const [err,    setErr]    = useState('')
@@ -337,7 +353,7 @@ function HikeModal({ hike, uid, onClose, onSaved, showToast }) {
       end_date:   form.end_date || form.start_date,
       status:     form.status,
       photos_url: form.photos_url.trim()     || null,
-      notes:      form.notes.trim()          || null,
+      notes:      buildHikeNotes(form.trail, form.notes),
     }
     let error
     if (hike) {
@@ -362,11 +378,6 @@ function HikeModal({ hike, uid, onClose, onSaved, showToast }) {
           <div className="field">
             <label>Nama Gunung</label>
             <input type="text" placeholder="Semeru, Rinjani, Merbabu…" value={form.mountain} onChange={e => set('mountain', e.target.value)} />
-            <div className="svc-quick-types">
-              {QUICK_MOUNTAINS.map(m => (
-                <button key={m} type="button" className="svc-quick-type-btn" onClick={() => set('mountain', m)}>{m}</button>
-              ))}
-            </div>
           </div>
 
           <div className="field-row">
@@ -378,6 +389,11 @@ function HikeModal({ hike, uid, onClose, onSaved, showToast }) {
               <label>Kota / Lokasi</label>
               <input type="text" placeholder="Lumajang, Malang…" value={form.city} onChange={e => set('city', e.target.value)} />
             </div>
+          </div>
+
+          <div className="field">
+            <label>Jalur / Basecamp</label>
+            <input type="text" placeholder="Ranu Pane, Cemoro Sewu, Wekas…" value={form.trail} onChange={e => set('trail', e.target.value)} />
           </div>
 
           <div className="field-row">

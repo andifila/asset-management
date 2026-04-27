@@ -5,11 +5,11 @@ import { useLang } from '../lib/LangContext'
 import Toast from '../components/Toast'
 
 const DEFAULT_COMPONENTS = [
-  { id: 'oli',    label: 'Oli Mesin',    icon: '⬥', keys: ['oli', 'oil'],             kmInt: 2000,  dayInt: 90,  color: 'var(--amber)'  },
-  { id: 'filter', label: 'Filter Udara', icon: '▣', keys: ['filter'],                 kmInt: 15000, dayInt: 365, color: 'var(--blue)'   },
-  { id: 'busi',   label: 'Busi',         icon: '◇', keys: ['busi', 'spark'],          kmInt: 12000, dayInt: 540, color: 'var(--purple)' },
-  { id: 'ban',    label: 'Ban Belakang', icon: '◎', keys: ['ban belakang', 'rear'],   kmInt: 18000, dayInt: null, color: 'var(--green)' },
-  { id: 'cvt',    label: 'CVT / V-Belt', icon: '⚙', keys: ['cvt', 'belt'],           kmInt: 8000,  dayInt: null, color: 'var(--red)'   },
+  { id: 'oli',        label: 'Oli Mesin',      icon: '⬥', keys: ['oli', 'oil'],                    kmInt: 2000,  dayInt: 90,  color: 'var(--amber)'  },
+  { id: 'service',    label: 'Service',         icon: '⚙', keys: ['service', 'servis', 'tune up'], kmInt: 4000,  dayInt: 90,  color: 'var(--blue)'   },
+  { id: 'finaldrive', label: 'Oli Final Drive', icon: '◎', keys: ['final drive', 'gardan'],        kmInt: 8000,  dayInt: 180, color: 'var(--purple)' },
+  { id: 'roller',     label: 'Roller',          icon: '◇', keys: ['roller'],                       kmInt: 24000, dayInt: null, color: 'var(--green)' },
+  { id: 'belt',       label: 'Drive Belt',      icon: '▣', keys: ['belt', 'drive belt', 'cvt'],   kmInt: 24000, dayInt: null, color: 'var(--red)'   },
 ]
 
 const LVL = {
@@ -28,11 +28,29 @@ function getComponents(vehicle) {
   }))
 }
 
+function tryParseItems(st) {
+  try { const p = JSON.parse(st); if (Array.isArray(p)) return p } catch {}
+  return [{ nama: st || '', biaya: '' }]
+}
+
+function fmtItems(st) {
+  try {
+    const p = JSON.parse(st)
+    if (Array.isArray(p) && p.length) return p.map(i => i.nama).filter(Boolean).join(' · ')
+  } catch {}
+  return st || '—'
+}
+
+function getServiceText(r) {
+  try { const p = JSON.parse(r.service_type || ''); if (Array.isArray(p)) return p.map(i => i.nama || '').join(' ') } catch {}
+  return r.service_type || ''
+}
+
 function compStatus(comp, records, kmNow) {
   const hits = records
-    .filter(r => comp.keys.some(k => (r.service_type || '').toLowerCase().includes(k)))
+    .filter(r => comp.keys.some(k => getServiceText(r).toLowerCase().includes(k)))
     .sort((a, b) => new Date(b.service_date) - new Date(a.service_date))
-  if (!hits.length) return { lvl: 'nodata', last: null, kmAgo: null, dAgo: null }
+  if (!hits.length) return { lvl: 'nodata', last: null, kmAgo: null, dAgo: null, nextKm: null, history: [] }
   const last = hits[0]
   const kmAgo = kmNow - (last.km_at_service || 0)
   const dAgo  = Math.floor((Date.now() - new Date(last.service_date)) / 86400000)
@@ -40,7 +58,9 @@ function compStatus(comp, records, kmNow) {
   const pDay  = comp.dayInt ? dAgo  / comp.dayInt : 0
   const pct   = Math.max(pKm, pDay)
   const lvl   = pct >= 1 ? 'overdue' : pct >= 0.8 ? 'due' : 'ok'
-  return { lvl, last, kmAgo, dAgo, pct }
+  const nextKm  = comp.kmInt && last.km_at_service ? last.km_at_service + comp.kmInt : null
+  const history = hits.slice(0, 4).map(r => r.km_at_service).filter(Boolean)
+  return { lvl, last, kmAgo, dAgo, pct, nextKm, history }
 }
 
 const fmtRp   = n => n ? 'Rp ' + Number(n).toLocaleString('id-ID') : '—'
@@ -64,6 +84,8 @@ export default function VehicleService({ session, onHome }) {
   const [showVehicleModal, setShowVehicleModal] = useState(false)
   const [editVehicle, setEditVehicle] = useState(null)
   const [toast,     setToast]     = useState(null)
+  const [expandedComp, setExpandedComp] = useState(null)
+  const [svcPage, setSvcPage] = useState(1)
   const toastKey = useRef(0)
 
   const uid    = session.user.id
@@ -121,6 +143,12 @@ export default function VehicleService({ session, onHome }) {
 
   const vehicleRecords = records.filter(r => r.vehicle_id === selectedId)
   const kmNow = vehicle?.km_current || 0
+
+  const PAGE_SIZE = 10
+  const totalPages = Math.max(1, Math.ceil(vehicleRecords.length / PAGE_SIZE))
+  const pagedRecords = vehicleRecords.slice((svcPage - 1) * PAGE_SIZE, svcPage * PAGE_SIZE)
+
+  useEffect(() => { setSvcPage(1) }, [selectedId])
 
   const updateKm = async () => {
     const km = parseInt(kmVal)
@@ -223,9 +251,9 @@ export default function VehicleService({ session, onHome }) {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <input
                           className="svc-km-input"
-                          type="number"
-                          value={kmVal}
-                          onChange={e => setKmVal(e.target.value)}
+                          type="text" inputMode="numeric"
+                          value={kmVal ? Number(kmVal).toLocaleString('id-ID') : ''}
+                          onChange={e => setKmVal(e.target.value.replace(/\./g, '').replace(/\D/g, ''))}
                           onBlur={updateKm}
                           onKeyDown={e => {
                             if (e.key === 'Enter') updateKm()
@@ -262,24 +290,37 @@ export default function VehicleService({ session, onHome }) {
                   const s  = compStatus(comp, vehicleRecords, kmNow)
                   const lv = LVL[s.lvl]
                   return (
-                    <div key={comp.id} className="svc-status-card" style={{ background: lv.bg, borderColor: lv.bd }}>
+                    <div key={comp.id} className={`svc-status-card${expandedComp === comp.id ? ' svc-status-card-active' : ''}`} style={{ background: lv.bg, borderColor: lv.bd, cursor: 'pointer' }} onClick={() => setExpandedComp(prev => prev === comp.id ? null : comp.id)}>
                       <div className="svc-status-top">
                         <span className="svc-status-icon" style={{ color: comp.color }}>{comp.icon}</span>
                         <span className="svc-status-badge" style={{ color: lv.color }}>{lv.txt}</span>
                       </div>
                       <div className="svc-status-name">{comp.label}</div>
-                      <div className="svc-status-meta">
-                        {s.last ? (
-                          <>
-                            <span>{fmtKm(s.kmAgo)} lalu</span>
-                            {comp.dayInt && <span> · {s.dAgo}h</span>}
-                          </>
-                        ) : (
-                          <span>Tidak ada data</span>
-                        )}
-                      </div>
-                      <div style={{ fontSize: '0.62rem', color: 'var(--muted)', marginTop: 3 }}>
-                        Ganti tiap {comp.kmInt ? `${comp.kmInt.toLocaleString('id-ID')} km` : ''}
+                      {s.last ? (
+                        <>
+                          <div className="svc-status-meta">
+                            <span>KM {(s.last.km_at_service||0).toLocaleString('id-ID')}</span>
+                            {comp.dayInt && <span> · {s.dAgo}h lalu</span>}
+                          </div>
+                          {s.nextKm && (
+                            <div style={{ fontSize: '0.7rem', marginTop: 4 }}>
+                              <span style={{ color: 'var(--muted)' }}>Next </span>
+                              <span style={{ fontFamily: "'DM Mono', monospace", color: lv.color, fontWeight: 600 }}>
+                                {s.nextKm.toLocaleString('id-ID')} km
+                              </span>
+                            </div>
+                          )}
+                          {s.history.length > 1 && (
+                            <div style={{ fontSize: '0.59rem', color: 'var(--muted)', marginTop: 5, borderTop: '1px solid var(--border)', paddingTop: 4, lineHeight: 1.7 }}>
+                              {s.history.map(k => k.toLocaleString('id-ID')).join(' · ')}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="svc-status-meta"><span>Tidak ada data</span></div>
+                      )}
+                      <div style={{ fontSize: '0.6rem', color: 'var(--muted)', marginTop: 5, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 4 }}>
+                        Interval {comp.kmInt ? `${comp.kmInt.toLocaleString('id-ID')} km` : ''}
                         {comp.kmInt && comp.dayInt ? ' / ' : ''}
                         {comp.dayInt ? `${comp.dayInt} hari` : ''}
                       </div>
@@ -300,8 +341,7 @@ export default function VehicleService({ session, onHome }) {
                     <tr>
                       <th>Tanggal</th>
                       <th>KM</th>
-                      <th>Jenis Servis</th>
-                      <th>Produk</th>
+                      <th>Servis</th>
                       <th>Bengkel</th>
                       <th className="num">Biaya</th>
                       <th className="actions" />
@@ -309,13 +349,12 @@ export default function VehicleService({ session, onHome }) {
                   </thead>
                   <tbody>
                     {vehicleRecords.length === 0 ? (
-                      <tr><td colSpan={7} className="empty-state">Belum ada catatan servis</td></tr>
-                    ) : vehicleRecords.map(r => (
+                      <tr><td colSpan={6} className="empty-state">Belum ada catatan servis</td></tr>
+                    ) : pagedRecords.map(r => (
                       <tr key={r.id}>
                         <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.service_date)}</td>
                         <td><span className="svc-km-cell">{r.km_at_service?.toLocaleString('id-ID')} km</span></td>
-                        <td>{r.service_type}</td>
-                        <td className="muted" style={{ fontSize: '0.75rem' }}>{r.product_used || <span className="muted">—</span>}</td>
+                        <td style={{ fontSize: '0.8rem' }}>{fmtItems(r.service_type)}</td>
                         <td>{r.shop || <span className="muted">—</span>}</td>
                         <td className="num">{fmtRp(r.cost)}</td>
                         <td className="actions">
@@ -330,7 +369,9 @@ export default function VehicleService({ session, onHome }) {
                   {vehicleRecords.length > 0 && (
                     <tfoot>
                       <tr>
-                        <td colSpan={5} className="muted" style={{ fontSize: '0.72rem' }}>{vehicleRecords.length} catatan</td>
+                        <td colSpan={4} className="muted" style={{ fontSize: '0.72rem' }}>
+                          {vehicleRecords.length} catatan · total
+                        </td>
                         <td className="num" style={{ fontFamily: "'DM Mono', monospace", fontSize: '0.78rem', color: 'var(--text)' }}>
                           {fmtRp(vehicleRecords.reduce((s, r) => s + (r.cost || 0), 0))}
                         </td>
@@ -371,6 +412,62 @@ export default function VehicleService({ session, onHome }) {
           showToast={showToast}
         />
       )}
+
+      {expandedComp && vehicle && (() => {
+        const comp = getComponents(vehicle).find(c => c.id === expandedComp)
+        if (!comp) return null
+        const recs = vehicleRecords
+          .filter(r => comp.keys.some(k => getServiceText(r).toLowerCase().includes(k)))
+          .sort((a, b) => new Date(b.service_date) - new Date(a.service_date))
+        return (
+          <div className="modal-overlay" onClick={() => setExpandedComp(null)}>
+            <div className="modal-box" style={{ maxWidth: 560 }} onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <span className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <span style={{ color: comp.color }}>{comp.icon}</span>
+                  History {comp.label}
+                </span>
+                <button className="modal-close" onClick={() => setExpandedComp(null)}>✕</button>
+              </div>
+              <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                {recs.length === 0 ? (
+                  <div className="empty-state" style={{ padding: '2rem 0' }}>Belum ada history {comp.label}</div>
+                ) : (
+                  <div className="table-wrap" style={{ marginBottom: 0 }}>
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Tanggal</th>
+                          <th>KM</th>
+                          <th>Item</th>
+                          <th>Bengkel</th>
+                          <th className="num">Biaya</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {recs.map(r => (
+                          <tr key={r.id}>
+                            <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.service_date)}</td>
+                            <td><span className="svc-km-cell">{r.km_at_service?.toLocaleString('id-ID')} km</span></td>
+                            <td style={{ fontSize: '0.8rem' }}>{fmtItems(r.service_type)}</td>
+                            <td>{r.shop || <span className="muted">—</span>}</td>
+                            <td className="num">{fmtRp(r.cost)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr>
+                          <td colSpan={5} className="muted" style={{ fontSize: '0.72rem' }}>{recs.length} catatan</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {toast && <Toast key={toast.key} message={toast.message} type={toast.type} onDone={() => setToast(null)} />}
     </div>
@@ -469,7 +566,11 @@ function VehicleModal({ vehicle, uid, onClose, onSaved, showToast }) {
             </div>
             <div className="field">
               <label>KM Sekarang</label>
-              <input type="number" placeholder="0" value={form.km_current} onChange={e => set('km_current', e.target.value)} />
+              <input
+                type="text" inputMode="numeric" placeholder="0"
+                value={form.km_current ? Number(String(form.km_current).replace(/\./g, '')).toLocaleString('id-ID') : ''}
+                onChange={e => set('km_current', e.target.value.replace(/\./g, '').replace(/\D/g, ''))}
+              />
             </div>
           </div>
 
@@ -484,17 +585,19 @@ function VehicleModal({ vehicle, uid, onClose, onSaved, showToast }) {
                 <div className="svc-parts-inputs">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     <input
-                      type="number" className="svc-parts-input"
-                      placeholder="km" value={p.kmInt}
-                      onChange={e => setPart(i, 'kmInt', e.target.value)}
+                      type="text" inputMode="numeric" className="svc-parts-input"
+                      placeholder="km"
+                      value={p.kmInt ? Number(p.kmInt).toLocaleString('id-ID') : ''}
+                      onChange={e => setPart(i, 'kmInt', e.target.value.replace(/\./g, '').replace(/\D/g, ''))}
                     />
                     <span style={{ fontSize: '0.65rem', color: 'var(--muted)', whiteSpace: 'nowrap' }}>km</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     <input
-                      type="number" className="svc-parts-input"
-                      placeholder="hari" value={p.dayInt}
-                      onChange={e => setPart(i, 'dayInt', e.target.value)}
+                      type="text" inputMode="numeric" className="svc-parts-input"
+                      placeholder="hari"
+                      value={p.dayInt ? Number(p.dayInt).toLocaleString('id-ID') : ''}
+                      onChange={e => setPart(i, 'dayInt', e.target.value.replace(/\./g, '').replace(/\D/g, ''))}
                     />
                     <span style={{ fontSize: '0.65rem', color: 'var(--muted)', whiteSpace: 'nowrap' }}>hari</span>
                   </div>
@@ -516,41 +619,38 @@ function VehicleModal({ vehicle, uid, onClose, onSaved, showToast }) {
 
 function ServiceModal({ record, vehicle, uid, onClose, onSaved, showToast }) {
   const today = new Date().toISOString().split('T')[0]
-  const [form, setForm] = useState({
-    service_date:  record?.service_date              || today,
-    km_at_service: record?.km_at_service?.toString() || '',
-    service_type:  record?.service_type              || '',
-    product_used:  record?.product_used              || '',
-    shop:          record?.shop                      || '',
-    cost:          record?.cost?.toString()          || '',
-    notes:         record?.notes                     || '',
-  })
+  const [date,  setDate]  = useState(record?.service_date || today)
+  const [km,    setKm]    = useState(record?.km_at_service?.toString() || '')
+  const [shop,  setShop]  = useState(record?.shop || '')
+  const [items, setItems] = useState(() =>
+    record?.service_type ? tryParseItems(record.service_type) : [{ nama: '', biaya: '' }]
+  )
+  const [notes,  setNotes]  = useState(record?.notes || '')
   const [saving, setSaving] = useState(false)
   const [err,    setErr]    = useState('')
 
-  const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }))
+  const setItem = (i, k, v) => setItems(prev => prev.map((it, idx) => idx === i ? { ...it, [k]: v } : it))
+  const addItem = () => setItems(prev => [...prev, { nama: '', biaya: '' }])
+  const delItem = i  => setItems(prev => prev.filter((_, idx) => idx !== i))
 
-  const QUICK = [
-    'Ganti oli', 'Ganti oli + filter udara', 'Ganti busi',
-    'Tune up', 'Servis CVT / belt', 'Ganti ban belakang', 'Ganti ban depan',
-  ]
+  const parseRaw = v => parseInt(String(v).replace(/\./g, '')) || 0
+  const total = items.reduce((s, it) => s + parseRaw(it.biaya), 0)
 
   const save = async () => {
-    if (!form.service_date || !form.service_type.trim()) {
-      setErr('Tanggal dan jenis servis wajib diisi')
-      return
-    }
+    if (!date) { setErr('Tanggal wajib diisi'); return }
+    const valid = items.filter(it => it.nama.trim())
+    if (!valid.length) { setErr('Minimal satu item servis harus diisi'); return }
     setSaving(true)
     const payload = {
       user_id:       uid,
       vehicle_id:    vehicle?.id,
-      service_date:  form.service_date,
-      km_at_service: parseInt(form.km_at_service) || null,
-      service_type:  form.service_type.trim(),
-      product_used:  form.product_used.trim() || null,
-      shop:          form.shop.trim()  || null,
-      cost:          parseInt(form.cost) || 0,
-      notes:         form.notes.trim() || null,
+      service_date:  date,
+      km_at_service: parseInt(km) || null,
+      service_type:  JSON.stringify(valid.map(it => ({ nama: it.nama.trim(), biaya: parseRaw(it.biaya) }))),
+      product_used:  null,
+      shop:          shop.trim() || null,
+      cost:          total,
+      notes:         notes.trim() || null,
     }
     let error
     if (record) {
@@ -576,58 +676,75 @@ function ServiceModal({ record, vehicle, uid, onClose, onSaved, showToast }) {
           <span className="modal-title">{record ? 'Edit Catatan Servis' : `+ Catat Servis — ${vehicle?.name || ''}`}</span>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
-        <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+        <div className="modal-body" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
           <div className="field-row">
             <div className="field">
               <label>Tanggal Servis</label>
-              <input type="date" value={form.service_date} onChange={e => set('service_date', e.target.value)} />
+              <input type="date" value={date} onChange={e => setDate(e.target.value)} />
             </div>
             <div className="field">
               <label>KM Saat Servis</label>
-              <input type="number" placeholder="mis. 21350" value={form.km_at_service} onChange={e => set('km_at_service', e.target.value)} />
+              <input
+                type="text" inputMode="numeric"
+                placeholder="mis. 21.350"
+                value={km ? Number(km).toLocaleString('id-ID') : ''}
+                onChange={e => setKm(e.target.value.replace(/\./g, '').replace(/\D/g, ''))}
+              />
             </div>
           </div>
 
           <div className="field">
-            <label>Jenis Servis</label>
-            <input
-              type="text"
-              placeholder="Ganti oli + filter udara"
-              value={form.service_type}
-              onChange={e => set('service_type', e.target.value)}
-            />
-            <div className="svc-quick-types">
-              {QUICK.map(q => (
-                <button key={q} type="button" className="svc-quick-type-btn"
-                  onClick={() => set('service_type', q)}>{q}</button>
+            <label>Bengkel</label>
+            <input type="text" placeholder="Ahass, bengkel umum, dll." value={shop} onChange={e => setShop(e.target.value)} />
+          </div>
+
+          <div className="svc-items-section">
+            <div className="svc-items-header">
+              <span className="svc-items-title">Item Servis</span>
+              <button type="button" className="btn-add" style={{ padding: '0.18rem 0.55rem', fontSize: '0.72rem' }} onClick={() => addItem()}>+ Item</button>
+            </div>
+            <div className="svc-quick-types" style={{ marginBottom: '0.55rem' }}>
+              {DEFAULT_COMPONENTS.map(c => (
+                <button key={c.id} type="button" className="svc-quick-type-btn"
+                  onClick={() => {
+                    const emptyIdx = items.findIndex(it => !it.nama.trim())
+                    if (emptyIdx >= 0) setItem(emptyIdx, 'nama', c.label)
+                    else setItems(prev => [...prev, { nama: c.label, biaya: '' }])
+                  }}>
+                  {c.label}
+                </button>
               ))}
             </div>
-          </div>
-
-          <div className="field">
-            <label>Produk yang Digunakan (opsional)</label>
-            <input
-              type="text"
-              placeholder="Shell Helix HX7 10W-40, NGK CR6HSA…"
-              value={form.product_used}
-              onChange={e => set('product_used', e.target.value)}
-            />
-          </div>
-
-          <div className="field-row">
-            <div className="field">
-              <label>Bengkel</label>
-              <input type="text" placeholder="Ahass, bengkel, dll." value={form.shop} onChange={e => set('shop', e.target.value)} />
+            {items.map((it, i) => (
+              <div key={i} className="svc-item-row">
+                <input
+                  type="text"
+                  className="svc-item-nama"
+                  placeholder="Nama produk / jenis servis"
+                  value={it.nama}
+                  onChange={e => setItem(i, 'nama', e.target.value)}
+                />
+                <input
+                  type="text" inputMode="numeric"
+                  className="svc-item-biaya"
+                  placeholder="Biaya"
+                  value={it.biaya ? Number(String(it.biaya).replace(/\./g, '')).toLocaleString('id-ID') : ''}
+                  onChange={e => setItem(i, 'biaya', e.target.value.replace(/\./g, '').replace(/\D/g, ''))}
+                />
+                {items.length > 1 && (
+                  <button type="button" className="btn-icon del" style={{ flexShrink: 0 }} onClick={() => delItem(i)}>✕</button>
+                )}
+              </div>
+            ))}
+            <div className="svc-item-total">
+              <span>Total</span>
+              <span className="svc-item-total-val">{fmtRp(total)}</span>
             </div>
-            <div className="field">
-              <label>Biaya (Rp)</label>
-              <input type="number" placeholder="185000" value={form.cost} onChange={e => set('cost', e.target.value)} />
-            </div>
           </div>
 
-          <div className="field">
+          <div className="field" style={{ marginTop: '0.75rem' }}>
             <label>Catatan (opsional)</label>
-            <input type="text" placeholder="Keterangan tambahan" value={form.notes} onChange={e => set('notes', e.target.value)} />
+            <input type="text" placeholder="Keterangan tambahan" value={notes} onChange={e => setNotes(e.target.value)} />
           </div>
 
           {err && <div className="modal-error">{err}</div>}

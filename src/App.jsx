@@ -15,16 +15,35 @@ export default function App() {
   const [tabType, setTabType] = useState(null)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => setSession(session))
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+      if (session) {
+        const saved = localStorage.getItem('lastModule')
+        if (saved) {
+          setModule(saved)
+          setTabType(localStorage.getItem('lastTabType') || null)
+        }
+      }
+    })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
       setSession(s)
-      if (!s) { setModule(null); setTabType(null) }
+      if (!s) {
+        setModule(null); setTabType(null)
+        localStorage.removeItem('lastModule'); localStorage.removeItem('lastTabType')
+      }
     })
     return () => subscription.unsubscribe()
   }, [])
 
-  const goModule = (mod, tab = null) => { setTabType(tab); setModule(mod) }
-  const goHome   = () => { setModule(null); setTabType(null) }
+  const goModule = (mod, tab = null) => {
+    setTabType(tab); setModule(mod)
+    localStorage.setItem('lastModule', mod)
+    tab ? localStorage.setItem('lastTabType', tab) : localStorage.removeItem('lastTabType')
+  }
+  const goHome = () => {
+    setModule(null); setTabType(null)
+    localStorage.removeItem('lastModule'); localStorage.removeItem('lastTabType')
+  }
 
   if (session === undefined) return (
     <div className="splash">

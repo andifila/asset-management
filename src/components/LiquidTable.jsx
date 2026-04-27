@@ -183,15 +183,14 @@ export default function LiquidTable({ data, jht, uid, onRefresh, showToast }) {
       </div>
 
       <div className="jht-card">
-        <div className="jht-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-            <h2 className="section-title">{t('jhtTitle')}</h2>
-            <span className="badge badge-purple">Liquid</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+              <h2 className="section-title">{t('jhtTitle')}</h2>
+              <span className="badge badge-purple">Liquid</span>
+            </div>
+            <p className="muted" style={{ fontSize: '0.8rem' }}>{t('jhtSub')}</p>
           </div>
-          <p className="muted" style={{ fontSize: '0.8rem' }}>{t('jhtSub')}</p>
-        </div>
-        <div className="jht-body">
-          <div className="jht-amount">{fmt(jht)}</div>
           <div className="jht-edit">
             <NumInput value={jhtVal} onChange={v => setJhtVal(v)} className="jht-input" />
             <button className="btn-save" onClick={saveJHT} disabled={savingJHT}>
