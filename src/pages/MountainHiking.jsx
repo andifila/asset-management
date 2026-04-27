@@ -167,19 +167,20 @@ export default function MountainHiking({ session, onHome }) {
         <main className="main-content">
           {/* Log Pendakian */}
           <div className="section-header">
-            <div className="section-title">Log Pendakian</div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
+              <div className="section-title">Log Pendakian</div>
+              {hikes.length > 0 && (
+                <span style={{ fontSize: '0.72rem', color: 'var(--muted)' }}>
+                  <span style={{ fontWeight: 700, color: 'var(--text)', fontFamily: "'DM Mono', monospace" }}>{hikes.length}</span> pendakian &middot; <span style={{ fontWeight: 700, color: 'var(--green)', fontFamily: "'DM Mono', monospace" }}>{summits}</span> summit
+                </span>
+              )}
+            </div>
             <button className="btn-add" onClick={() => { setEditHike(null); setShowAdd(true) }}>
               + Catat Pendakian
             </button>
           </div>
 
           <div className="hike-layout">
-            {hikes.length > 0 && (
-              <div style={{ display: 'flex', gap: 16, marginBottom: 10, fontSize: '0.72rem', color: 'var(--muted)' }}>
-                <span><span style={{ fontWeight: 700, color: 'var(--text)', fontFamily: "'DM Mono', monospace" }}>{hikes.length}</span> total pendakian</span>
-                <span><span style={{ fontWeight: 700, color: 'var(--green)', fontFamily: "'DM Mono', monospace" }}>{summits}</span> summit</span>
-              </div>
-            )}
             <div className="table-wrap" style={{ marginBottom: 0 }}>
               <table>
                 <thead>
