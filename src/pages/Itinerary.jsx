@@ -905,6 +905,8 @@ function TripModal({ trip, uid, onClose, onSaved, showToast }) {
 
   const [form, setForm] = useState({
     destination:  trip?.destination  || '',
+    start_date:   trip?.start_date   || '',
+    end_date:     trip?.end_date     || '',
     people_count: trip?.people_count?.toString() || '1',
     status:       trip?.status       || 'upcoming',
     notes:        trip?.notes        || '',
@@ -981,8 +983,8 @@ function TripModal({ trip, uid, onClose, onSaved, showToast }) {
       }))
 
     const actDates   = itinData.flatMap(a => [a.date, a.date_end].filter(Boolean)).sort()
-    const start_date = actDates[0] || today
-    const end_date   = actDates[actDates.length - 1] || today
+    const start_date = actDates[0] || form.start_date || today
+    const end_date   = actDates[actDates.length - 1] || form.end_date || form.start_date || today
 
     const payload = {
       user_id:               uid,
@@ -1017,7 +1019,7 @@ function TripModal({ trip, uid, onClose, onSaved, showToast }) {
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
         <div className="modal-body" style={{ maxHeight: '78vh', overflowY: 'auto' }}>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', marginBottom: '0.75rem' }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', marginBottom: '0.5rem' }}>
             <div className="field" style={{ flex: 1, marginBottom: 0 }}>
               <label>Destinasi</label>
               <input type="text" placeholder="Bali, Yogyakarta, Tokyo…"
@@ -1030,6 +1032,18 @@ function TripModal({ trip, uid, onClose, onSaved, showToast }) {
                 value={form.people_count ? Number(String(form.people_count).replace(/\./g, '')).toLocaleString('id-ID') : ''}
                 onChange={e => set('people_count', e.target.value.replace(/\./g, '').replace(/\D/g, ''))}
               />
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', marginBottom: '0.75rem' }}>
+            <div className="field" style={{ flex: 1, marginBottom: 0 }}>
+              <label>Tanggal Mulai</label>
+              <input type="date" value={form.start_date} onChange={e => set('start_date', e.target.value)} />
+            </div>
+            <div className="field" style={{ flex: 1, marginBottom: 0 }}>
+              <label>Tanggal Selesai</label>
+              <input type="date" value={form.end_date}
+                min={form.start_date || undefined}
+                onChange={e => set('end_date', e.target.value)} />
             </div>
           </div>
 
