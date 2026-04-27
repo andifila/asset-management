@@ -302,45 +302,6 @@ export default function Itinerary({ session, onHome }) {
         <div className="loading-state">Memuat data trip...</div>
       ) : (
         <main className="main-content">
-          {/* Stats */}
-          <div className="itin-stats">
-            <div className="itin-stat">
-              <div className="itin-stat-val">{trips.length}</div>
-              <div className="itin-stat-label">Total Trip</div>
-              <div className="itin-stat-sub">
-                {tripDelta > 0 ? `+${tripDelta} dari bulan lalu` : tripDelta < 0 ? `${tripDelta} dari bulan lalu` : trips.length === 0 ? 'Belum ada trip' : 'Sama seperti bulan lalu'}
-              </div>
-            </div>
-            <div className="itin-stat">
-              <div className="itin-stat-val" style={{ color: '#4a90d9' }}>{ongoing.length}</div>
-              <div className="itin-stat-label">Ongoing</div>
-              <div className="itin-stat-sub">
-                {ongoing.length === 0 ? 'Tidak ada aktif' : `${ongoing.length} sedang berjalan`}
-              </div>
-            </div>
-            <div className="itin-stat">
-              <div className="itin-stat-val" style={{ color: 'var(--amber)' }}>{upcoming.length}</div>
-              <div className="itin-stat-label">Upcoming</div>
-              <div className="itin-stat-sub">
-                {upcoming.length === 0 ? 'Tidak ada terjadwal 😢' : `${upcoming.length} trip terjadwal`}
-              </div>
-            </div>
-            <div className="itin-stat">
-              <div className="itin-stat-val" style={{ color: 'var(--green)' }}>{done.length}</div>
-              <div className="itin-stat-label">Selesai</div>
-              <div className="itin-stat-sub">
-                {done.length === 0 ? 'Belum ada' : `${done.length} destinasi dikunjungi`}
-              </div>
-            </div>
-            <div className="itin-stat">
-              <div className="itin-stat-val" style={{ color: 'var(--blue)' }}>
-                {new Set(trips.map(t => t.destination)).size}
-              </div>
-              <div className="itin-stat-label">Destinasi</div>
-              <div className="itin-stat-sub">Tempat unik</div>
-            </div>
-          </div>
-
           {/* Dashboard widgets */}
           {(ongoing.length > 0 || (nextTrip && nextTrip.status === 'upcoming')) && (
             <div className="itin-dashboard">
@@ -672,6 +633,10 @@ function TripCardUpcoming({ trip, onView, onEdit, onDelete }) {
   const pax        = trip.people_count || 1
   const st         = TRIP_STATUS[effectiveStatus(trip)] || TRIP_STATUS.upcoming
 
+  const actPct = activities.length > 0
+    ? Math.round(activities.filter(a => a.status === 'done' || a.status === 'cancelled').length / activities.length * 100)
+    : null
+
   const daysLabel = days === null ? null
     : days > 0  ? `${days} hari lagi`
     : days === 0 ? 'Hari ini!'
@@ -704,13 +669,13 @@ function TripCardUpcoming({ trip, onView, onEdit, onDelete }) {
         {budget > 0 && <span className="itin-budget-pill">{fmtRp(budget)}/orang</span>}
       </div>
 
-      {trip.status === 'ongoing' && (
+      {actPct !== null && (
         <div>
           <div className="itin-progress-bar" style={{ marginBottom: 2 }}>
-            <div className="itin-progress-fill" style={{ width: `${tripProgress(trip.start_date, trip.end_date)}%`, background: st.color }} />
+            <div className="itin-progress-fill" style={{ width: `${actPct}%`, background: st.color }} />
           </div>
           <div style={{ fontSize: '0.62rem', color: 'var(--muted)', textAlign: 'right' }}>
-            {tripProgress(trip.start_date, trip.end_date)}% selesai
+            {actPct}% aktivitas selesai
           </div>
         </div>
       )}
