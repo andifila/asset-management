@@ -6,6 +6,7 @@ import Modal from './Modal'
 import ConfirmModal from './ConfirmModal'
 import NumInput from './NumInput'
 import { useLang } from '../lib/LangContext'
+import Pagination, { paginate } from './Pagination'
 
 const KATEGORI = [
   { value: 'main_pocket',  label: 'Main Pocket',  cls: 'badge-blue' },
@@ -29,6 +30,7 @@ export default function LiquidTable({ data, jht, uid, onRefresh, showToast }) {
   const [jhtErr, setJhtErr]     = useState(null)
   const [sortKey, setSortKey]   = useState(null)
   const [sortDir, setSortDir]   = useState('asc')
+  const [page, setPage]         = useState(1)
 
   const total        = data.reduce((s, r) => s + Number(r.jumlah), 0)
   const tMainPocket  = data.filter(r => r.kategori === 'main_pocket').reduce((s, r) => s + Number(r.jumlah), 0)
@@ -36,6 +38,7 @@ export default function LiquidTable({ data, jht, uid, onRefresh, showToast }) {
   const tLainnya     = data.filter(r => !r.kategori || r.kategori === 'lainnya').reduce((s, r) => s + Number(r.jumlah), 0)
 
   const toggleSort = (key) => {
+    setPage(1)
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setSortKey(key); setSortDir('asc') }
   }
@@ -155,7 +158,7 @@ export default function LiquidTable({ data, jht, uid, onRefresh, showToast }) {
             {sorted.length === 0 && (
               <tr><td colSpan={4} className="empty-state">{t('noData')}</td></tr>
             )}
-            {sorted.map(r => {
+            {paginate(sorted, page).map(r => {
               const kat = KAT_MAP[r.kategori] || KAT_MAP['lainnya']
               return (
                 <tr key={r.id}>
@@ -181,6 +184,7 @@ export default function LiquidTable({ data, jht, uid, onRefresh, showToast }) {
           </tfoot>
         </table>
       </div>
+      <Pagination total={sorted.length} page={page} onChange={setPage} />
 
       <div className="jht-card">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>

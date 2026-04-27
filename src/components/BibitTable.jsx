@@ -6,6 +6,7 @@ import Modal from './Modal'
 import ConfirmModal from './ConfirmModal'
 import NumInput from './NumInput'
 import { useLang } from '../lib/LangContext'
+import Pagination, { paginate } from './Pagination'
 
 const EMPTY = { nama_aset: '', kategori: 'pasar_uang', saldo: '', aktual: '', catatan: '' }
 const KAT_CLASS = { pasar_uang: 'badge-teal', obligasi: 'badge-blue', saham: 'badge-amber' }
@@ -21,6 +22,7 @@ export default function BibitTable({ data, uid, onRefresh, showToast }) {
   const [deleting, setDeleting] = useState(false)
   const [sortKey, setSortKey]   = useState(null)
   const [sortDir, setSortDir]   = useState('asc')
+  const [page, setPage]         = useState(1)
 
   const tSaldo  = data.reduce((s, r) => s + Number(r.saldo), 0)
   const tAktual = data.reduce((s, r) => s + Number(r.aktual), 0)
@@ -46,6 +48,7 @@ export default function BibitTable({ data, uid, onRefresh, showToast }) {
   })()
 
   const toggleSort = (key) => {
+    setPage(1)
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setSortKey(key); setSortDir('asc') }
   }
@@ -137,6 +140,7 @@ export default function BibitTable({ data, uid, onRefresh, showToast }) {
       )}
 
       <div className="physical-layout">
+      <div style={{ flex: 1, minWidth: 0 }}>
       <div className="table-wrap">
         <table>
           <thead><tr>
@@ -151,9 +155,8 @@ export default function BibitTable({ data, uid, onRefresh, showToast }) {
             {sorted.length === 0 && (
               <tr><td colSpan={6} className="empty-state">{t('noData')}</td></tr>
             )}
-            {sorted.map(r => {
+            {paginate(sorted, page).map(r => {
               const pnl = Number(r.aktual) - Number(r.saldo)
-              const rank = profitRanks[r.id]
               return (
                 <tr key={r.id}>
                   <td>{r.nama_aset}</td>
@@ -179,6 +182,8 @@ export default function BibitTable({ data, uid, onRefresh, showToast }) {
             <td />
           </tr></tfoot>
         </table>
+      </div>
+      <Pagination total={sorted.length} page={page} onChange={setPage} />
       </div>
 
       <div className="physical-rank-panel">

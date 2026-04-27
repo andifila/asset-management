@@ -5,6 +5,7 @@ import { fmt, fmtPnl } from '../lib/format'
 import Modal from './Modal'
 import ConfirmModal from './ConfirmModal'
 import { useLang } from '../lib/LangContext'
+import Pagination, { paginate } from './Pagination'
 
 const EMPTY = { symbol: '', catatan: '' }
 const AUTO_REFRESH_MS = 5 * 60 * 1000 // 5 menit
@@ -20,6 +21,7 @@ export default function BinanceTable({ data, uid, onRefresh, showToast }) {
   const [deleting, setDeleting] = useState(false)
   const [sortKey, setSortKey]   = useState(null)
   const [sortDir, setSortDir]   = useState('asc')
+  const [page, setPage]         = useState(1)
 
   const [saldoUsdt,  setSaldoUsdt]  = useState('')
   const [aktualUsdt, setAktualUsdt] = useState('')
@@ -109,6 +111,7 @@ export default function BinanceTable({ data, uid, onRefresh, showToast }) {
   const manualRefresh = () => { fetchRate(); startCountdown() }
 
   const toggleSort = (key) => {
+    setPage(1)
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setSortKey(key); setSortDir('asc') }
   }
@@ -258,6 +261,7 @@ export default function BinanceTable({ data, uid, onRefresh, showToast }) {
       )}
 
       <div className="physical-layout">
+      <div style={{ flex: 1, minWidth: 0 }}>
       <div className="table-wrap">
         <table>
           <thead>
@@ -274,10 +278,8 @@ export default function BinanceTable({ data, uid, onRefresh, showToast }) {
             {sorted.length === 0 && (
               <tr><td colSpan={usdtRate ? 5 : 4} className="empty-state">{t('noData')}</td></tr>
             )}
-            {sorted.map(r => {
+            {paginate(sorted, page).map(r => {
               const pnl = Number(r.aktual) - Number(r.saldo)
-              const rank = profitRanks[r.id]
-              const rankCls = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : 'rank-3'
               return (
                 <tr key={r.id}>
                   <td><span className="crypto-sym">{r.symbol}</span></td>
@@ -312,6 +314,8 @@ export default function BinanceTable({ data, uid, onRefresh, showToast }) {
             </tr>
           </tfoot>
         </table>
+      </div>
+      <Pagination total={sorted.length} page={page} onChange={setPage} />
       </div>
 
       <div className="physical-rank-panel">

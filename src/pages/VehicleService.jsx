@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useLang } from '../lib/LangContext'
 import Toast from '../components/Toast'
+import Pagination from '../components/Pagination'
 
 const DEFAULT_COMPONENTS = [
   { id: 'oli',        label: 'Oli Mesin',      icon: '⬥', keys: ['oli', 'oil'],                    kmInt: 2000,  dayInt: 90,  color: 'var(--amber)'  },
@@ -381,6 +382,7 @@ export default function VehicleService({ session, onHome }) {
                   )}
                 </table>
               </div>
+              <Pagination total={vehicleRecords.length} page={svcPage} onChange={setSvcPage} />
             </>
           )}
 

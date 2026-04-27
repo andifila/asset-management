@@ -110,7 +110,7 @@ export default function Home({ session, onModule }) {
             onClick={e => { e.stopPropagation(); toggleAssets() }}
             title={showAssets ? 'Sembunyikan' : 'Tampilkan'}
           >
-            {showAssets ? '👁' : '🙈'}
+            {showAssets ? '◉' : '◌'}
           </button>
         ),
       }

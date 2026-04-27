@@ -6,6 +6,7 @@ import Modal from './Modal'
 import ConfirmModal from './ConfirmModal'
 import NumInput from './NumInput'
 import { useLang } from '../lib/LangContext'
+import Pagination, { paginate } from './Pagination'
 
 const EMPTY = { asset_name: '', buy_price: '', buy_date: '', catatan: '' }
 
@@ -20,6 +21,7 @@ export default function PhysicalTable({ data, uid, onRefresh, showToast }) {
   const [deleting, setDeleting] = useState(false)
   const [sortKey, setSortKey] = useState(null)
   const [sortDir, setSortDir] = useState('asc')
+  const [page, setPage]       = useState(1)
 
   const total = data.reduce((s, r) => s + Number(r.buy_price), 0)
 
@@ -35,6 +37,7 @@ export default function PhysicalTable({ data, uid, onRefresh, showToast }) {
   const top10 = ranked.slice(0, 10)
 
   const toggleSort = (key) => {
+    setPage(1)
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setSortKey(key); setSortDir('asc') }
   }
@@ -130,6 +133,7 @@ export default function PhysicalTable({ data, uid, onRefresh, showToast }) {
       )}
 
       <div className="physical-layout">
+        <div style={{ flex: 1, minWidth: 0 }}>
         <div className="table-wrap">
           <table>
             <thead>
@@ -146,7 +150,7 @@ export default function PhysicalTable({ data, uid, onRefresh, showToast }) {
               {sorted.length === 0 && (
                 <tr><td colSpan={6} className="empty-state">{t('noData')}</td></tr>
               )}
-              {sorted.map(r => {
+              {paginate(sorted, page).map(r => {
                 const months = calcMonths(r.buy_date)
                 const perBulan = months ? Math.round(Number(r.buy_price) / months) : null
                 return (
@@ -178,6 +182,8 @@ export default function PhysicalTable({ data, uid, onRefresh, showToast }) {
               </tr>
             </tfoot>
           </table>
+        </div>
+        <Pagination total={sorted.length} page={page} onChange={setPage} />
         </div>
 
         <div className="physical-rank-panel">
