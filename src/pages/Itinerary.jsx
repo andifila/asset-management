@@ -299,60 +299,6 @@ export default function Itinerary({ session, onHome }) {
         <div className="loading-state">Memuat data trip...</div>
       ) : (
         <main className="main-content">
-          {/* Dashboard widgets */}
-          {(ongoing.length > 0 || (nextTrip && nextTrip.status === 'upcoming')) && (
-            <div className="itin-dashboard">
-              {ongoing.map(t => {
-                const pct = tripProgress(t.start_date, t.end_date)
-                return (
-                  <div key={t.id} className="itin-dash-widget" onClick={() => setDetail(t)}>
-                    <div className="itin-dash-widget-top">
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                        <span className="itin-status-pill" style={{ background: TRIP_STATUS.ongoing.bg, color: TRIP_STATUS.ongoing.color, borderColor: TRIP_STATUS.ongoing.bd }}>
-                          ● Ongoing
-                        </span>
-                        <span className="itin-dash-dest">{t.destination}</span>
-                      </div>
-                      <span style={{ fontSize: '0.65rem', color: 'var(--muted)', fontFamily: 'DM Mono, monospace' }}>{pct}%</span>
-                    </div>
-                    <div className="itin-progress-bar">
-                      <div className="itin-progress-fill" style={{ width: `${pct}%`, background: '#4a90d9' }} />
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--muted)' }}>
-                      <span>{fmtDateShort(t.start_date)}</span>
-                      <span>{fmtDateShort(t.end_date)}</span>
-                    </div>
-                  </div>
-                )
-              })}
-              {nextTrip && nextTrip.status === 'upcoming' && (() => {
-                const d = daysUntil(nextTrip.start_date)
-                const col = d === null ? 'var(--muted)' : d <= 3 ? '#e05252' : d <= 14 ? '#e9a229' : '#3dba7e'
-                return (
-                  <div className="itin-dash-widget" onClick={() => setDetail(nextTrip)}>
-                    <div className="itin-dash-widget-top">
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                        <span className="itin-status-pill" style={{ background: TRIP_STATUS.upcoming.bg, color: TRIP_STATUS.upcoming.color, borderColor: TRIP_STATUS.upcoming.bd }}>
-                          ◷ Next Trip
-                        </span>
-                        <span className="itin-dash-dest">{nextTrip.destination}</span>
-                      </div>
-                    </div>
-                    <div className="itin-dash-countdown">
-                      <span className="itin-countdown-num" style={{ color: col }}>
-                        {d === null ? '—' : Math.abs(d)}
-                      </span>
-                      <span className="itin-countdown-unit">hari lagi</span>
-                    </div>
-                    <div style={{ fontSize: '0.65rem', color: 'var(--muted)' }}>
-                      {fmtDate(nextTrip.start_date)} – {fmtDate(nextTrip.end_date)}
-                    </div>
-                  </div>
-                )
-              })()}
-            </div>
-          )}
-
           {/* Travel Insight */}
           <div className="itin-section">
             <div className="section-header">
@@ -665,8 +611,16 @@ function TripCardUpcoming({ trip, onView, onEdit, onDelete }) {
 
 // ─── Detail Modal ────────────────────────────────────────────────────────────
 
+function sortActs(acts) {
+  return [...acts].sort((a, b) => {
+    const da = a.date || '9999-99-99', db = b.date || '9999-99-99'
+    if (da !== db) return da.localeCompare(db)
+    return (a.time_start || '99:99').localeCompare(b.time_start || '99:99')
+  })
+}
+
 function TripDetailModal({ trip, uid, onClose, onSaved }) {
-  const [localActs,   setLocalActs]   = useState(() => parseActivities(trip.itinerary))
+  const [localActs,   setLocalActs]   = useState(() => sortActs(parseActivities(trip.itinerary)))
   const [localStatus, setLocalStatus] = useState(effectiveStatus(trip))
   const [saving,      setSaving]      = useState(false)
   const [previewUrl,  setPreviewUrl]  = useState(null)
@@ -970,6 +924,7 @@ function TripModal({ trip, uid, onClose, onSaved, showToast }) {
     initActivities().forEach((a, i) => { if (a.date_end) s.add(i) })
     return s
   })
+  const [expandedIdx, setExpandedIdx] = useState(() => initActivities().length === 0 ? 0 : null)
   const [saving,     setSaving]     = useState(false)
   const [err,        setErr]        = useState('')
 
@@ -977,7 +932,9 @@ function TripModal({ trip, uid, onClose, onSaved, showToast }) {
   const setAct = (i, k, v) => setActivities(prev => prev.map((a, idx) => idx === i ? { ...a, [k]: v } : a))
   const addAct = () => setActivities(prev => {
     const last = prev[prev.length - 1]
-    return [...prev, { ...blankActivity(), date: last?.date || '' }]
+    const next = [...prev, { ...blankActivity(), date: last?.date || '' }]
+    setExpandedIdx(next.length - 1)
+    return next
   })
   const delAct = i => setActivities(prev => prev.filter((_, idx) => idx !== i))
   const parseRawNum = v => parseInt(String(v).replace(/\./g, '')) || 0
@@ -1087,7 +1044,10 @@ function TripModal({ trip, uid, onClose, onSaved, showToast }) {
               </span>
             </div>
             <div className="itin-act-editor">
-              {activities.map((a, i) => (
+              {activities.map((a, i) => {
+                const isOpen = expandedIdx === i
+                const cat = catMap[a.category] || catMap.lainnya
+                return isOpen ? (
                 <div key={i} className="itin-act-wrap">
                   {/* Row 1: nama + lokasi + hapus */}
                   <div className="itin-act-row-1">
@@ -1176,7 +1136,27 @@ function TripModal({ trip, uid, onClose, onSaved, showToast }) {
                     </div>
                   )}
                 </div>
-              ))}
+                ) : (
+                <div key={i} className="itin-act-wrap" onClick={() => setExpandedIdx(i)}
+                  style={{ cursor: 'pointer', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: '1rem', flexShrink: 0 }}>{cat.icon}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 500, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {a.activity || <span style={{ color: 'var(--muted)' }}>—</span>}
+                    </div>
+                    <div style={{ fontSize: '0.62rem', color: 'var(--muted)' }}>
+                      {[a.date && fmtDateShort(a.date), a.time_start, a.location].filter(Boolean).join(' · ')}
+                    </div>
+                  </div>
+                  {a.price_per_person > 0 && (
+                    <span style={{ fontSize: '0.65rem', color: 'var(--amber)', fontFamily: 'DM Mono, monospace', flexShrink: 0 }}>
+                      {fmtRp(a.price_per_person)}
+                    </span>
+                  )}
+                  <button type="button" className="btn-icon del" onClick={e => { e.stopPropagation(); delAct(i) }}>✕</button>
+                </div>
+                )
+              })}
               {activities.length === 0 && (
                 <div style={{ fontSize: '0.75rem', color: 'var(--muted)', textAlign: 'center', padding: '1rem' }}>
                   Klik "+ Tambah" untuk menambahkan aktivitas
