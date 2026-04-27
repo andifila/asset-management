@@ -86,7 +86,8 @@ export default function VehicleService({ session, onHome }) {
   const [editVehicle, setEditVehicle] = useState(null)
   const [toast,     setToast]     = useState(null)
   const [expandedComp, setExpandedComp] = useState(null)
-  const [svcPage, setSvcPage] = useState(1)
+  const [svcPage,   setSvcPage]   = useState(1)
+  const [svcSearch, setSvcSearch] = useState('')
   const toastKey = useRef(0)
 
   const uid    = session.user.id
@@ -146,10 +147,17 @@ export default function VehicleService({ session, onHome }) {
   const kmNow = vehicle?.km_current || 0
 
   const PAGE_SIZE = 10
-  const totalPages = Math.max(1, Math.ceil(vehicleRecords.length / PAGE_SIZE))
-  const pagedRecords = vehicleRecords.slice((svcPage - 1) * PAGE_SIZE, svcPage * PAGE_SIZE)
+  const filteredRecords = svcSearch.trim()
+    ? vehicleRecords.filter(r => {
+        const q = svcSearch.toLowerCase()
+        return fmtItems(r.service_type).toLowerCase().includes(q)
+          || (r.shop || '').toLowerCase().includes(q)
+          || fmtDate(r.service_date).toLowerCase().includes(q)
+      })
+    : vehicleRecords
+  const pagedRecords = filteredRecords.slice((svcPage - 1) * PAGE_SIZE, svcPage * PAGE_SIZE)
 
-  useEffect(() => { setSvcPage(1) }, [selectedId])
+  useEffect(() => { setSvcPage(1); setSvcSearch('') }, [selectedId])
 
   const updateKm = async () => {
     const km = parseInt(kmVal)
@@ -333,7 +341,16 @@ export default function VehicleService({ session, onHome }) {
               {/* Service History */}
               <div className="section-header">
                 <div className="section-title">Riwayat Servis</div>
-                <button className="btn-add" onClick={() => { setEditRec(null); setShowAdd(true) }}>+ Catat Servis</button>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input
+                    type="text"
+                    placeholder="Cari servis, bengkel…"
+                    value={svcSearch}
+                    onChange={e => { setSvcSearch(e.target.value); setSvcPage(1) }}
+                    style={{ fontSize: '0.75rem', padding: '0.28rem 0.6rem', borderRadius: 6, border: '1px solid var(--border2)', background: 'var(--bg2)', color: 'var(--text)', width: 170, outline: 'none' }}
+                  />
+                  <button className="btn-add" onClick={() => { setEditRec(null); setShowAdd(true) }}>+ Catat Servis</button>
+                </div>
               </div>
 
               <div className="table-wrap">
@@ -349,8 +366,8 @@ export default function VehicleService({ session, onHome }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {vehicleRecords.length === 0 ? (
-                      <tr><td colSpan={6} className="empty-state">Belum ada catatan servis</td></tr>
+                    {filteredRecords.length === 0 ? (
+                      <tr><td colSpan={6} className="empty-state">{svcSearch ? 'Tidak ada hasil pencarian' : 'Belum ada catatan servis'}</td></tr>
                     ) : pagedRecords.map(r => (
                       <tr key={r.id}>
                         <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.service_date)}</td>
@@ -367,14 +384,14 @@ export default function VehicleService({ session, onHome }) {
                       </tr>
                     ))}
                   </tbody>
-                  {vehicleRecords.length > 0 && (
+                  {filteredRecords.length > 0 && (
                     <tfoot>
                       <tr>
                         <td colSpan={4} className="muted" style={{ fontSize: '0.72rem' }}>
-                          {vehicleRecords.length} catatan · total
+                          {filteredRecords.length} catatan{svcSearch ? ` (dari ${vehicleRecords.length})` : ''} · total
                         </td>
                         <td className="num" style={{ fontFamily: "'DM Mono', monospace", fontSize: '0.78rem', color: 'var(--text)' }}>
-                          {fmtRp(vehicleRecords.reduce((s, r) => s + (r.cost || 0), 0))}
+                          {fmtRp(filteredRecords.reduce((s, r) => s + (r.cost || 0), 0))}
                         </td>
                         <td />
                       </tr>
@@ -382,7 +399,7 @@ export default function VehicleService({ session, onHome }) {
                   )}
                 </table>
               </div>
-              <Pagination total={vehicleRecords.length} page={svcPage} onChange={setSvcPage} />
+              <Pagination total={filteredRecords.length} page={svcPage} onChange={setSvcPage} />
             </>
           )}
 
@@ -421,57 +438,97 @@ export default function VehicleService({ session, onHome }) {
         const recs = vehicleRecords
           .filter(r => comp.keys.some(k => getServiceText(r).toLowerCase().includes(k)))
           .sort((a, b) => new Date(b.service_date) - new Date(a.service_date))
-        return (
-          <div className="modal-overlay" onClick={() => setExpandedComp(null)}>
-            <div className="modal-box" style={{ maxWidth: 560 }} onClick={e => e.stopPropagation()}>
-              <div className="modal-header">
-                <span className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                  <span style={{ color: comp.color }}>{comp.icon}</span>
-                  History {comp.label}
-                </span>
-                <button className="modal-close" onClick={() => setExpandedComp(null)}>✕</button>
-              </div>
-              <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-                {recs.length === 0 ? (
-                  <div className="empty-state" style={{ padding: '2rem 0' }}>Belum ada history {comp.label}</div>
-                ) : (
-                  <div className="table-wrap" style={{ marginBottom: 0 }}>
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Tanggal</th>
-                          <th>KM</th>
-                          <th>Item</th>
-                          <th>Bengkel</th>
-                          <th className="num">Biaya</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {recs.map(r => (
-                          <tr key={r.id}>
-                            <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.service_date)}</td>
-                            <td><span className="svc-km-cell">{r.km_at_service?.toLocaleString('id-ID')} km</span></td>
-                            <td style={{ fontSize: '0.8rem' }}>{fmtItems(r.service_type)}</td>
-                            <td>{r.shop || <span className="muted">—</span>}</td>
-                            <td className="num">{fmtRp(r.cost)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                      <tfoot>
-                        <tr>
-                          <td colSpan={5} className="muted" style={{ fontSize: '0.72rem' }}>{recs.length} catatan</td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )
+        return <CompHistoryModal comp={comp} recs={recs} onClose={() => setExpandedComp(null)} />
       })()}
 
       {toast && <Toast key={toast.key} message={toast.message} type={toast.type} onDone={() => setToast(null)} />}
+    </div>
+  )
+}
+
+function CompHistoryModal({ comp, recs, onClose }) {
+  const [search, setSearch] = useState('')
+  const [page,   setPage]   = useState(1)
+  const PAGE = 10
+
+  const filtered = search.trim()
+    ? recs.filter(r =>
+        fmtItems(r.service_type).toLowerCase().includes(search.toLowerCase()) ||
+        (r.shop || '').toLowerCase().includes(search.toLowerCase()) ||
+        fmtDate(r.service_date).toLowerCase().includes(search.toLowerCase())
+      )
+    : recs
+  const paged = filtered.slice((page - 1) * PAGE, page * PAGE)
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box" style={{ maxWidth: 560 }} onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <span className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+            <span style={{ color: comp.color }}>{comp.icon}</span>
+            History {comp.label}
+          </span>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {recs.length > 0 && (
+              <input
+                type="text"
+                placeholder="Cari…"
+                value={search}
+                onChange={e => { setSearch(e.target.value); setPage(1) }}
+                style={{ fontSize: '0.75rem', padding: '0.26rem 0.55rem', borderRadius: 6, border: '1px solid var(--border2)', background: 'var(--bg2)', color: 'var(--text)', width: 130, outline: 'none' }}
+              />
+            )}
+            <button className="modal-close" onClick={onClose}>✕</button>
+          </div>
+        </div>
+        <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+          {recs.length === 0 ? (
+            <div className="empty-state" style={{ padding: '2rem 0' }}>Belum ada history {comp.label}</div>
+          ) : (
+            <>
+              <div className="table-wrap" style={{ marginBottom: 0 }}>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Tanggal</th>
+                      <th>KM</th>
+                      <th>Item</th>
+                      <th>Bengkel</th>
+                      <th className="num">Biaya</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.length === 0 ? (
+                      <tr><td colSpan={5} className="empty-state">Tidak ada hasil</td></tr>
+                    ) : paged.map(r => (
+                      <tr key={r.id}>
+                        <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.service_date)}</td>
+                        <td><span className="svc-km-cell">{r.km_at_service?.toLocaleString('id-ID')} km</span></td>
+                        <td style={{ fontSize: '0.8rem' }}>{fmtItems(r.service_type)}</td>
+                        <td>{r.shop || <span className="muted">—</span>}</td>
+                        <td className="num">{fmtRp(r.cost)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  {filtered.length > 0 && (
+                    <tfoot>
+                      <tr>
+                        <td colSpan={4} className="muted" style={{ fontSize: '0.72rem' }}>
+                          {filtered.length} catatan{search ? ` (dari ${recs.length})` : ''}
+                        </td>
+                        <td className="num" style={{ fontFamily: "'DM Mono', monospace", fontSize: '0.78rem', color: 'var(--text)' }}>
+                          {fmtRp(filtered.reduce((s, r) => s + (r.cost || 0), 0))}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+              <Pagination total={filtered.length} page={page} onChange={setPage} />
+            </>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
