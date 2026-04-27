@@ -47,15 +47,22 @@ function tripProgress(startDate, endDate) {
 }
 
 function effectiveStatus(trip) {
-  if (trip.status === 'cancelled' || trip.status === 'optional' || trip.status === 'done') return trip.status
-  if (!trip.start_date) return trip.status || 'upcoming'
+  if (trip.status === 'cancelled' || trip.status === 'optional') return trip.status
+  if (trip.status === 'done') return 'done'
+  if (!trip.start_date) return 'upcoming'
   const parse = d => { const [y,m,dd] = d.split('-'); return new Date(+y,+m-1,+dd) }
   const today = new Date(); today.setHours(0,0,0,0)
   const s = parse(trip.start_date)
   const e = trip.end_date ? parse(trip.end_date) : s
-  if (e < today) return 'done'
-  if (s <= today) return 'ongoing'
+  if (s <= today && today <= e) return 'ongoing'
   return 'upcoming'
+}
+
+function isPastTrip(trip) {
+  if (!trip.end_date) return false
+  const [y,m,d] = trip.end_date.split('-')
+  const today = new Date(); today.setHours(0,0,0,0)
+  return new Date(+y,+m-1,+d) < today
 }
 
 function totalDaysThisYear(trips) {
@@ -221,7 +228,7 @@ export default function Itinerary({ session, onHome }) {
   const ongoing   = trips.filter(t => effectiveStatus(t) === 'ongoing')
   const upcoming  = trips.filter(t => effectiveStatus(t) === 'upcoming')
   const done      = trips.filter(t => effectiveStatus(t) === 'done')
-  const milestones = trips.filter(t => ['done', 'cancelled', 'optional'].includes(effectiveStatus(t)))
+  const milestones = trips.filter(t => ['done', 'cancelled', 'optional'].includes(effectiveStatus(t)) || isPastTrip(t))
 
   const year2026 = trips
     .filter(t => {
