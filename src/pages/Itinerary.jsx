@@ -336,47 +336,55 @@ export default function Itinerary({ session, onHome }) {
             <button className="btn-add" onClick={() => { setEditTrip(null); setShowAdd(true) }}>+ Trip Baru</button>
           </div>
 
-          <div className="itin-section">
-            <div className="section-header">
-              <div className="section-title" style={{ color: '#4a90d9' }}>Ongoing</div>
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+            {/* Ongoing */}
+            <div className="itin-section" style={{ flex: '0 0 300px', minWidth: 0 }}>
+              <div className="section-header">
+                <div className="section-title" style={{ color: '#4a90d9' }}>Ongoing</div>
+              </div>
+              {ongoing.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {ongoing.map(trip => (
+                    <TripCardUpcoming
+                      key={trip.id} trip={trip}
+                      onView={() => setDetail(trip)}
+                      onEdit={() => { setEditTrip(trip); setShowAdd(true) }}
+                      onDelete={() => handleDelete(trip.id)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="itin-empty-ongoing">
+                  <div className="itin-empty-ongoing-icon">🚀</div>
+                  <div className="itin-empty-ongoing-title">Belum ada perjalanan aktif</div>
+                  <div className="itin-empty-ongoing-sub">Yuk mulai trip baru!</div>
+                </div>
+              )}
             </div>
-            {ongoing.length > 0 ? (
-              <div className="itin-upcoming-grid">
-                {ongoing.map(trip => (
-                  <TripCardUpcoming
-                    key={trip.id} trip={trip}
-                    onView={() => setDetail(trip)}
-                    onEdit={() => { setEditTrip(trip); setShowAdd(true) }}
-                    onDelete={() => handleDelete(trip.id)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="itin-empty-ongoing">
-                <div className="itin-empty-ongoing-icon">🚀</div>
-                <div className="itin-empty-ongoing-title">Belum ada perjalanan aktif</div>
-                <div className="itin-empty-ongoing-sub">Yuk mulai trip baru!</div>
-              </div>
-            )}
-          </div>
 
-          {upcoming.length > 0 && (
-            <div className="itin-section">
+            {/* Upcoming */}
+            <div className="itin-section" style={{ flex: 1, minWidth: 0 }}>
               <div className="section-header">
                 <div className="section-title">Upcoming</div>
               </div>
-              <div className="itin-upcoming-grid">
-                {upcoming.map(trip => (
-                  <TripCardUpcoming
-                    key={trip.id} trip={trip}
-                    onView={() => setDetail(trip)}
-                    onEdit={() => { setEditTrip(trip); setShowAdd(true) }}
-                    onDelete={() => handleDelete(trip.id)}
-                  />
-                ))}
-              </div>
+              {upcoming.length > 0 ? (
+                <div className="itin-upcoming-grid">
+                  {upcoming.map(trip => (
+                    <TripCardUpcoming
+                      key={trip.id} trip={trip}
+                      onView={() => setDetail(trip)}
+                      onEdit={() => { setEditTrip(trip); setShowAdd(true) }}
+                      onDelete={() => handleDelete(trip.id)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="itin-empty-ongoing" style={{ opacity: 0.5 }}>
+                  <div className="itin-empty-ongoing-sub">Tidak ada trip upcoming</div>
+                </div>
+              )}
             </div>
-          )}
+          </div>
 
           <div className="itin-section">
             <div className="section-header">
