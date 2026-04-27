@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useLang } from '../lib/LangContext'
 import Toast from '../components/Toast'
+import Pagination, { paginate } from '../components/Pagination'
 
 const STATUS = {
   summit: { label: 'Summit',  color: '#3dba7e', bg: 'rgba(61,186,126,0.12)',  bd: 'rgba(61,186,126,0.28)' },
@@ -90,6 +91,7 @@ export default function MountainHiking({ session, onHome }) {
   const [hikes,    setHikes]    = useState([])
   const [loading,  setLoading]  = useState(true)
   const [sort,     setSort]     = useState('date')
+  const [page,     setPage]     = useState(1)
   const [showAdd,  setShowAdd]  = useState(false)
   const [editHike, setEditHike] = useState(null)
   const [toast,    setToast]    = useState(null)
@@ -137,11 +139,7 @@ export default function MountainHiking({ session, onHome }) {
   const parse = d => { if (!d) return 0; const [y,m,dd]=d.split('-'); return new Date(+y,+m-1,+dd) }
   const summits = hikes.filter(h => h.status === 'summit').length
 
-  const sorted  = [...hikes].sort((a, b) =>
-    sort === 'elev'
-      ? (b.elevation||0) - (a.elevation||0)
-      : parse(b.start_date) - parse(a.start_date)
-  )
+  const sorted  = [...hikes].sort((a, b) => parse(b.start_date) - parse(a.start_date))
 
   const top5 = [...hikes].filter(h => h.elevation).sort((a, b) => (b.elevation||0) - (a.elevation||0)).slice(0, 5)
 
@@ -167,37 +165,21 @@ export default function MountainHiking({ session, onHome }) {
         <div className="loading-state">Memuat data pendakian...</div>
       ) : (
         <main className="main-content">
-          {/* Stats */}
-          <div className="hike-stats">
-            <div className="hike-stat">
-              <div className="hike-stat-val">{hikes.length}</div>
-              <div className="hike-stat-label">Gunung</div>
-            </div>
-            <div className="hike-stat">
-              <div className="hike-stat-val" style={{ color: 'var(--green)' }}>{summits}</div>
-              <div className="hike-stat-label">Summit</div>
-            </div>
-          </div>
-
           {/* Log Pendakian */}
           <div className="section-header">
             <div className="section-title">Log Pendakian</div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <div className="hike-sort-wrap">
-                <button className={`hike-sort-btn${sort === 'date' ? ' active' : ''}`} onClick={() => setSort('date')}>
-                  Tanggal
-                </button>
-                <button className={`hike-sort-btn${sort === 'elev' ? ' active' : ''}`} onClick={() => setSort('elev')}>
-                  MDPL
-                </button>
-              </div>
-              <button className="btn-add" onClick={() => { setEditHike(null); setShowAdd(true) }}>
-                + Catat Pendakian
-              </button>
-            </div>
+            <button className="btn-add" onClick={() => { setEditHike(null); setShowAdd(true) }}>
+              + Catat Pendakian
+            </button>
           </div>
 
           <div className="hike-layout">
+            {hikes.length > 0 && (
+              <div style={{ display: 'flex', gap: 16, marginBottom: 10, fontSize: '0.72rem', color: 'var(--muted)' }}>
+                <span><span style={{ fontWeight: 700, color: 'var(--text)', fontFamily: "'DM Mono', monospace" }}>{hikes.length}</span> total pendakian</span>
+                <span><span style={{ fontWeight: 700, color: 'var(--green)', fontFamily: "'DM Mono', monospace" }}>{summits}</span> summit</span>
+              </div>
+            )}
             <div className="table-wrap" style={{ marginBottom: 0 }}>
               <table>
                 <thead>
@@ -213,7 +195,7 @@ export default function MountainHiking({ session, onHome }) {
                 <tbody>
                   {sorted.length === 0 ? (
                     <tr><td colSpan={6} className="empty-state">Belum ada catatan pendakian</td></tr>
-                  ) : sorted.map(h => {
+                  ) : paginate(sorted, page).map(h => {
                     const st     = STATUS[h.status] || STATUS.summit
                     const badges = getHikeBadges(h.mountain)
                     const { trail: hTrail, notes: hNotesText } = parseHikeNotes(h.notes)
@@ -258,15 +240,8 @@ export default function MountainHiking({ session, onHome }) {
                     )
                   })}
                 </tbody>
-                {hikes.length > 0 && (
-                  <tfoot>
-                    <tr>
-                      <td colSpan={3} className="muted" style={{ fontSize: '0.72rem' }}>{hikes.length} pendakian · {summits} summit</td>
-                      <td colSpan={3} />
-                    </tr>
-                  </tfoot>
-                )}
               </table>
+            <Pagination total={sorted.length} page={page} onChange={setPage} />
             </div>
 
             {top5.length > 0 && (

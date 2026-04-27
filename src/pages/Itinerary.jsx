@@ -272,9 +272,14 @@ export default function Itinerary({ session, onHome }) {
     return (!best || days > best.days) ? { trip: t, days } : best
   }, null)
 
-  const destCount = {}
-  trips.forEach(t => { if (t.destination) destCount[t.destination] = (destCount[t.destination] || 0) + 1 })
-  const topDest = Object.entries(destCount).sort((a, b) => b[1] - a[1])[0]
+  const totalBudget = trips
+    .filter(t => t.est_budget_per_person > 0)
+    .reduce((sum, t) => sum + t.est_budget_per_person * (t.people_count || 1), 0)
+
+  const tripsWithBudget = trips.filter(t => t.est_budget_per_person > 0)
+  const avgCostPerTrip = tripsWithBudget.length
+    ? Math.round(tripsWithBudget.reduce((s, t) => s + t.est_budget_per_person, 0) / tripsWithBudget.length)
+    : 0
 
 
   return (
@@ -314,17 +319,14 @@ export default function Itinerary({ session, onHome }) {
                 <div className="itin-insight-sub">{doneTripsList.length} trip selesai</div>
               </div>
               <div className="itin-insight-card">
-                <div className="itin-insight-label">Trip terlama</div>
-                <div className="itin-insight-val" style={{ color: '#8b7de8' }}>
-                  {longestTrip ? longestTrip.days : '—'}
-                  {longestTrip && <span style={{ fontSize: '0.7rem', fontWeight: 400, color: 'var(--muted)', marginLeft: 4 }}>hari</span>}
-                </div>
-                {longestTrip && <div className="itin-insight-sub">{longestTrip.trip.destination}</div>}
+                <div className="itin-insight-label">Total budget</div>
+                <div className="itin-insight-val" style={{ color: '#8b7de8' }}>{totalBudget > 0 ? fmtRp(totalBudget) : '—'}</div>
+                {tripsWithBudget.length > 0 && <div className="itin-insight-sub">{tripsWithBudget.length} trip tercatat</div>}
               </div>
               <div className="itin-insight-card">
-                <div className="itin-insight-label">Destinasi favorit</div>
-                <div className="itin-insight-val" style={{ color: '#3dba7e' }}>{topDest ? topDest[0] : '—'}</div>
-                {topDest && <div className="itin-insight-sub">{topDest[1]}× dikunjungi</div>}
+                <div className="itin-insight-label">Avg cost/trip</div>
+                <div className="itin-insight-val" style={{ color: '#3dba7e' }}>{avgCostPerTrip > 0 ? fmtRp(avgCostPerTrip) : '—'}</div>
+                {avgCostPerTrip > 0 && <div className="itin-insight-sub">per orang</div>}
               </div>
             </div>
           </div>
@@ -484,11 +486,8 @@ function TripMilestoneCard({ trip, onView, onEdit, onDelete }) {
   const budget = trip.est_budget_per_person
   const year = trip.end_date ? trip.end_date.slice(0, 4) : null
   const st = TRIP_STATUS[effectiveStatus(trip)] || TRIP_STATUS.done
-  const numDays = (() => {
-    if (!trip.start_date || !trip.end_date) return 0
-    const [y1,m1,d1] = trip.start_date.split('-'), [y2,m2,d2] = trip.end_date.split('-')
-    return Math.round((new Date(+y2,+m2-1,+d2) - new Date(+y1,+m1-1,+d1)) / 86400000) + 1
-  })()
+  const acts = parseActivities(trip.itinerary)
+  const doneActs = acts.filter(a => a.status === 'done' || a.status === 'cancelled').length
 
   return (
     <div className="itin-milestone-card" onClick={onView}>
@@ -503,16 +502,14 @@ function TripMilestoneCard({ trip, onView, onEdit, onDelete }) {
         <span>{fmtDateShort(trip.start_date)} – {fmtDateShort(trip.end_date)}</span>
         {budget > 0 && <span className="itin-milestone-budget">{fmtRp(budget)}/orang</span>}
       </div>
-      {numDays > 0 && (
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
-          {Array.from({ length: numDays }, (_, i) => (
-            <span key={i} style={{
-              fontSize: '0.6rem', fontWeight: 600, padding: '2px 7px', borderRadius: 4,
-              background: 'rgba(61,186,126,0.15)', color: '#3dba7e', border: '1px solid rgba(61,186,126,0.3)',
-            }}>
-              Day {i + 1} ✓
-            </span>
-          ))}
+      {acts.length > 0 && (
+        <div style={{ marginTop: 6 }}>
+          <span style={{
+            fontSize: '0.65rem', fontWeight: 600, padding: '2px 9px', borderRadius: 4,
+            background: 'rgba(61,186,126,0.15)', color: '#3dba7e', border: '1px solid rgba(61,186,126,0.3)',
+          }}>
+            {doneActs}/{acts.length} aktivitas selesai
+          </span>
         </div>
       )}
       <div className="itin-milestone-footer" onClick={e => e.stopPropagation()}>
