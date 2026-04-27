@@ -331,11 +331,6 @@ export default function Itinerary({ session, onHome }) {
             </div>
           </div>
 
-          {/* Add button */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem' }}>
-            <button className="btn-add" onClick={() => { setEditTrip(null); setShowAdd(true) }}>+ Trip Baru</button>
-          </div>
-
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
             {/* Ongoing */}
             <div className="itin-section" style={{ flex: '0 0 300px', minWidth: 0 }}>
@@ -367,22 +362,25 @@ export default function Itinerary({ session, onHome }) {
               <div className="section-header">
                 <div className="section-title">Upcoming</div>
               </div>
-              {upcoming.length > 0 ? (
-                <div className="itin-upcoming-grid">
-                  {upcoming.map(trip => (
-                    <TripCardUpcoming
-                      key={trip.id} trip={trip}
-                      onView={() => setDetail(trip)}
-                      onEdit={() => { setEditTrip(trip); setShowAdd(true) }}
-                      onDelete={() => handleDelete(trip.id)}
-                    />
-                  ))}
+              <div className="itin-upcoming-grid">
+                {upcoming.map(trip => (
+                  <TripCardUpcoming
+                    key={trip.id} trip={trip}
+                    onView={() => setDetail(trip)}
+                    onEdit={() => { setEditTrip(trip); setShowAdd(true) }}
+                    onDelete={() => handleDelete(trip.id)}
+                  />
+                ))}
+                {/* Card tambah trip baru */}
+                <div
+                  className="itin-card-upcoming itin-card-add"
+                  onClick={() => { setEditTrip(null); setShowAdd(true) }}
+                  style={{ borderTopColor: 'var(--border2)', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 90, opacity: 0.6 }}
+                >
+                  <span style={{ fontSize: '1.4rem', lineHeight: 1 }}>+</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>Trip baru</span>
                 </div>
-              ) : (
-                <div className="itin-empty-ongoing" style={{ opacity: 0.5 }}>
-                  <div className="itin-empty-ongoing-sub">Tidak ada trip upcoming</div>
-                </div>
-              )}
+              </div>
             </div>
           </div>
 
