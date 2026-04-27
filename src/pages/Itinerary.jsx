@@ -276,9 +276,6 @@ export default function Itinerary({ session, onHome }) {
   trips.forEach(t => { if (t.destination) destCount[t.destination] = (destCount[t.destination] || 0) + 1 })
   const topDest = Object.entries(destCount).sort((a, b) => b[1] - a[1])[0]
 
-  const totalBudgetDone = doneTripsList
-    .filter(t => t.est_budget_per_person > 0)
-    .reduce((sum, t) => sum + t.est_budget_per_person * (t.people_count || 1), 0)
 
   return (
     <div className="app">
@@ -419,13 +416,6 @@ export default function Itinerary({ session, onHome }) {
                 <div className="itin-insight-val" style={{ color: '#3dba7e' }}>{topDest ? topDest[0] : '—'}</div>
                 {topDest && <div className="itin-insight-sub">{topDest[1]}× dikunjungi</div>}
               </div>
-              {totalBudgetDone > 0 && (
-                <div className="itin-insight-card">
-                  <div className="itin-insight-label">Total budget trip selesai</div>
-                  <div className="itin-insight-val" style={{ color: '#e9a229' }}>{fmtRp(totalBudgetDone)}</div>
-                  <div className="itin-insight-sub">semua trip selesai</div>
-                </div>
-              )}
             </div>
           </div>
 
@@ -1011,17 +1001,31 @@ function TripModal({ trip, uid, onClose, onSaved, showToast }) {
     return s
   })
   const [uploading,  setUploading]  = useState({})
+  const [multiDay,   setMultiDay]   = useState(() => {
+    const s = new Set()
+    initActivities().forEach((a, i) => { if (a.date_end) s.add(i) })
+    return s
+  })
   const [saving,     setSaving]     = useState(false)
   const [err,        setErr]        = useState('')
 
   const set    = (k, v) => setForm(prev => ({ ...prev, [k]: v }))
   const setAct = (i, k, v) => setActivities(prev => prev.map((a, idx) => idx === i ? { ...a, [k]: v } : a))
-  const addAct = () => setActivities(prev => [...prev, blankActivity()])
+  const addAct = () => setActivities(prev => {
+    const last = prev[prev.length - 1]
+    return [...prev, { ...blankActivity(), date: last?.date || '' }]
+  })
   const delAct = i => setActivities(prev => prev.filter((_, idx) => idx !== i))
   const parseRawNum = v => parseInt(String(v).replace(/\./g, '')) || 0
 
   const toggleFile = i => setFileOpen(prev => {
     const next = new Set(prev); next.has(i) ? next.delete(i) : next.add(i); return next
+  })
+  const toggleMultiDay = i => setMultiDay(prev => {
+    const next = new Set(prev)
+    if (next.has(i)) { next.delete(i); setAct(i, 'date_end', '') }
+    else next.add(i)
+    return next
   })
 
   const handleFileUpload = async (i, file) => {
@@ -1131,34 +1135,50 @@ function TripModal({ trip, uid, onClose, onSaved, showToast }) {
             <div className="itin-act-editor">
               {activities.map((a, i) => (
                 <div key={i} className="itin-act-wrap">
-                  {/* Row 1: berangkat (tanggal + jam) → tiba (tanggal + jam) */}
+                  {/* Row 1: nama + lokasi + hapus */}
                   <div className="itin-act-row-1">
+                    <input type="text" className="itin-act-input" style={{ flex: 2, minWidth: 0 }}
+                      placeholder="Aktivitas*" value={a.activity}
+                      onChange={e => setAct(i, 'activity', e.target.value)} />
+                    <input type="text" className="itin-act-input" style={{ flex: 1, minWidth: 0 }}
+                      placeholder="Lokasi" value={a.location}
+                      onChange={e => setAct(i, 'location', e.target.value)} />
+                    <button type="button" className="btn-icon del" onClick={() => delAct(i)}>✕</button>
+                  </div>
+                  {/* Row 2: kategori pills */}
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                    {ACT_CATEGORIES.map(c => (
+                      <button key={c.value} type="button" onClick={() => setAct(i, 'category', c.value)}
+                        style={{
+                          padding: '3px 9px', borderRadius: 4, cursor: 'pointer', fontSize: '0.72rem',
+                          border: `1px solid ${a.category === c.value ? c.color : 'var(--border)'}`,
+                          background: a.category === c.value ? `${c.color}22` : 'var(--bg3)',
+                          color: a.category === c.value ? c.color : 'var(--muted)',
+                          fontWeight: a.category === c.value ? 600 : 400,
+                        }}>
+                        {c.icon} {c.label}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Row 3: tanggal + jam + harga + catatan */}
+                  <div className="itin-act-row-2">
                     <input type="date" className="itin-act-input"
                       value={a.date || ''} onChange={e => setAct(i, 'date', e.target.value)} />
                     <input type="time" className="itin-act-input"
                       value={a.time_start || ''} onChange={e => setAct(i, 'time_start', e.target.value)} />
                     <span className="itin-act-row-arrow">→</span>
-                    <input type="date" className="itin-act-input"
-                      title="Tiba (jika beda hari)"
-                      value={a.date_end || ''} onChange={e => setAct(i, 'date_end', e.target.value)} />
                     <input type="time" className="itin-act-input"
                       value={a.time_end || ''} onChange={e => setAct(i, 'time_end', e.target.value)} />
-                    <div style={{ flex: 1 }} />
-                    <button type="button" className="btn-icon del" onClick={() => delAct(i)}>✕</button>
-                  </div>
-                  {/* Row 2: aktivitas + detail */}
-                  <div className="itin-act-row-2">
-                    <input type="text" className="itin-act-input"
-                      placeholder="Aktivitas*" value={a.activity}
-                      onChange={e => setAct(i, 'activity', e.target.value)} />
-                    <input type="text" className="itin-act-input"
-                      placeholder="Lokasi" value={a.location}
-                      onChange={e => setAct(i, 'location', e.target.value)} />
-                    <select className="itin-act-input" value={a.category} onChange={e => setAct(i, 'category', e.target.value)}>
-                      {ACT_CATEGORIES.map(c => (
-                        <option key={c.value} value={c.value}>{c.icon} {c.label}</option>
-                      ))}
-                    </select>
+                    <button type="button" title="Multi-hari"
+                      onClick={() => toggleMultiDay(i)}
+                      style={{
+                        padding: '3px 7px', borderRadius: 4, cursor: 'pointer', fontSize: '0.65rem',
+                        border: `1px solid ${multiDay.has(i) ? '#4a90d9' : 'var(--border)'}`,
+                        background: multiDay.has(i) ? 'rgba(74,144,217,0.15)' : 'var(--bg3)',
+                        color: multiDay.has(i) ? '#4a90d9' : 'var(--muted)', whiteSpace: 'nowrap',
+                      }}>
+                      +hari
+                    </button>
                     <input
                       type="text" inputMode="numeric" className="itin-act-input"
                       placeholder="Harga/orang"
@@ -1168,13 +1188,18 @@ function TripModal({ trip, uid, onClose, onSaved, showToast }) {
                     <input type="text" className="itin-act-input"
                       placeholder="Catatan" value={a.note}
                       onChange={e => setAct(i, 'note', e.target.value)} />
-                    <button
-                      type="button"
+                    <button type="button"
                       className={`btn-icon${a.attachment_url ? ' itin-clip-active' : ''}`}
-                      title="Lampiran / Dokumen"
-                      onClick={() => toggleFile(i)}
-                    >📎</button>
+                      title="Lampiran" onClick={() => toggleFile(i)}>📎</button>
                   </div>
+                  {/* Row 4: tanggal akhir (multi-hari) */}
+                  {multiDay.has(i) && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: '0.65rem', color: 'var(--muted)' }}>Sampai</span>
+                      <input type="date" className="itin-act-input"
+                        value={a.date_end || ''} onChange={e => setAct(i, 'date_end', e.target.value)} />
+                    </div>
+                  )}
                   {/* File attachment row */}
                   {fileOpen.has(i) && (
                     <div className="itin-act-file">

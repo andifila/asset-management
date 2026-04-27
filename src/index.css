@@ -1338,7 +1338,7 @@ th.sortable.sorted .sort-icon { opacity: 1; color: var(--blue); }
 /* Travel Insight */
 .itin-insight-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 10px;
 }
 .itin-insight-card {
