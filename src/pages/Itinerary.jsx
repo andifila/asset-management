@@ -894,7 +894,7 @@ function TripModal({ trip, uid, onClose, onSaved, showToast }) {
     if (!trip?.itinerary) return [blankActivity()]
     const acts = parseActivities(trip.itinerary)
     if (!acts.length) return [blankActivity()]
-    return acts.map(a => ({
+    return sortActs(acts.map(a => ({
       ...blankActivity(),
       ...a,
       price_per_person: a.price_per_person?.toString() || '',
@@ -903,7 +903,7 @@ function TripModal({ trip, uid, onClose, onSaved, showToast }) {
       date_end:   a.date_end   || '',
       category:   a.category   || 'aktivitas',
       attachment_url: a.attachment_url || '',
-    }))
+    })))
   }
 
   const [form, setForm] = useState({
@@ -1057,6 +1057,9 @@ function TripModal({ trip, uid, onClose, onSaved, showToast }) {
                     <input type="text" className="itin-act-input" style={{ flex: 1, minWidth: 0 }}
                       placeholder="Lokasi" value={a.location}
                       onChange={e => setAct(i, 'location', e.target.value)} />
+                    <button type="button" className="btn-icon" title="Tutup"
+                      onClick={() => setExpandedIdx(null)}
+                      style={{ fontSize: '0.7rem' }}>▴</button>
                     <button type="button" className="btn-icon del" onClick={() => delAct(i)}>✕</button>
                   </div>
                   {/* Row 2: kategori pills */}
