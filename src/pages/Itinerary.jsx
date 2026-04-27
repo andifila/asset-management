@@ -353,42 +353,6 @@ export default function Itinerary({ session, onHome }) {
             </div>
           )}
 
-          {/* 2026 Rundown */}
-          {year2026.length > 0 && (
-            <div className="itin-section">
-              <div className="section-header">
-                <div className="section-title">
-                  Rundown {CURRENT_YEAR}
-                  <span style={{ fontSize: '0.65rem', color: 'var(--muted)', fontWeight: 400, marginLeft: 8 }}>
-                    {year2026.length} trip
-                  </span>
-                </div>
-              </div>
-              <div className="itin-rundown">
-                {year2026.map(t => {
-                  const st = TRIP_STATUS[effectiveStatus(t)] || TRIP_STATUS.upcoming
-                  return (
-                    <div key={t.id} className="itin-rundown-item" onClick={() => setDetail(t)}>
-                      <div className="itin-rundown-line" style={{ background: st.color }} />
-                      <div className="itin-rundown-body">
-                        <div className="itin-rundown-dest">{t.destination}</div>
-                        <div className="itin-rundown-meta">
-                          <span>{fmtDateShort(t.start_date)} – {fmtDateShort(t.end_date)}</span>
-                          <span>·</span>
-                          <span>{tripDuration(t.start_date, t.end_date)}</span>
-                          {t.people_count > 1 && <><span>·</span><span>{t.people_count} orang</span></>}
-                          <span className="itin-status-pill" style={{ background: st.bg, color: st.color, borderColor: st.bd }}>
-                            {st.label}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
           {/* Travel Insight */}
           <div className="itin-section">
             <div className="section-header">
@@ -1117,11 +1081,10 @@ function TripModal({ trip, uid, onClose, onSaved, showToast }) {
 
           {/* Activities */}
           <div style={{ marginTop: '0.5rem', marginBottom: '0.875rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border)' }}>
+            <div style={{ paddingTop: '0.5rem', borderTop: '1px solid var(--border)', marginBottom: '0.5rem' }}>
               <span style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted)' }}>
                 Aktivitas ({activities.length})
               </span>
-              <button type="button" className="btn-add" onClick={addAct}>+ Tambah</button>
             </div>
             <div className="itin-act-editor">
               {activities.map((a, i) => (
@@ -1170,6 +1133,10 @@ function TripModal({ trip, uid, onClose, onSaved, showToast }) {
                       }}>
                       +hari
                     </button>
+                    {multiDay.has(i) && (
+                      <input type="date" className="itin-act-input" style={{ minWidth: 115, flex: '0 0 auto' }}
+                        value={a.date_end || ''} onChange={e => setAct(i, 'date_end', e.target.value)} />
+                    )}
                     <input
                       type="text" inputMode="numeric" className="itin-act-input"
                       style={{ flex: 1, minWidth: 100 }}
@@ -1181,14 +1148,6 @@ function TripModal({ trip, uid, onClose, onSaved, showToast }) {
                       className={`btn-icon${a.attachment_url ? ' itin-clip-active' : ''}`}
                       title="Lampiran" onClick={() => toggleFile(i)}>📎</button>
                   </div>
-                  {/* Row 4: tanggal akhir (multi-hari) */}
-                  {multiDay.has(i) && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: '0.65rem', color: 'var(--muted)' }}>Sampai</span>
-                      <input type="date" className="itin-act-input"
-                        value={a.date_end || ''} onChange={e => setAct(i, 'date_end', e.target.value)} />
-                    </div>
-                  )}
                   {/* File attachment row */}
                   {fileOpen.has(i) && (
                     <div className="itin-act-file">
@@ -1224,6 +1183,8 @@ function TripModal({ trip, uid, onClose, onSaved, showToast }) {
                 </div>
               )}
             </div>
+            <button type="button" className="btn-add" onClick={addAct}
+              style={{ marginTop: 6, width: '100%' }}>+ Tambah Aktivitas</button>
           </div>
 
           {err && <div className="modal-error">{err}</div>}
