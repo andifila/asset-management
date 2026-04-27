@@ -1099,28 +1099,19 @@ function TripModal({ trip, uid, onClose, onSaved, showToast }) {
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
         <div className="modal-body" style={{ maxHeight: '78vh', overflowY: 'auto' }}>
-          <div className="field-row">
-            <div className="field">
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', marginBottom: '0.75rem' }}>
+            <div className="field" style={{ flex: 1, marginBottom: 0 }}>
               <label>Destinasi</label>
               <input type="text" placeholder="Bali, Yogyakarta, Tokyo…"
                 value={form.destination} onChange={e => set('destination', e.target.value)} />
             </div>
-            <div className="field" style={{ maxWidth: 100 }}>
-              <label>Orang</label>
+            <div className="field" style={{ width: 90, flexShrink: 0, marginBottom: 0 }}>
+              <label>Jumlah orang</label>
               <input
-                type="text" inputMode="numeric" placeholder="2"
+                type="text" inputMode="numeric" placeholder="1"
                 value={form.people_count ? Number(String(form.people_count).replace(/\./g, '')).toLocaleString('id-ID') : ''}
                 onChange={e => set('people_count', e.target.value.replace(/\./g, '').replace(/\D/g, ''))}
               />
-            </div>
-            <div className="field" style={{ maxWidth: 140 }}>
-              <label>Status</label>
-              <select value={form.status} onChange={e => set('status', e.target.value)}>
-                <option value="upcoming">Belum Selesai</option>
-                <option value="done">Selesai</option>
-                <option value="cancelled">Batal</option>
-                <option value="optional">Opsional</option>
-              </select>
             </div>
           </div>
 
@@ -1160,34 +1151,32 @@ function TripModal({ trip, uid, onClose, onSaved, showToast }) {
                       </button>
                     ))}
                   </div>
-                  {/* Row 3: tanggal + jam + harga + catatan */}
-                  <div className="itin-act-row-2">
-                    <input type="date" className="itin-act-input"
+                  {/* Row 3: tanggal + jam + harga */}
+                  <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <input type="date" className="itin-act-input" style={{ minWidth: 115, flex: '0 0 auto' }}
                       value={a.date || ''} onChange={e => setAct(i, 'date', e.target.value)} />
-                    <input type="time" className="itin-act-input"
+                    <input type="time" className="itin-act-input" style={{ minWidth: 78, flex: '0 0 auto' }}
                       value={a.time_start || ''} onChange={e => setAct(i, 'time_start', e.target.value)} />
                     <span className="itin-act-row-arrow">→</span>
-                    <input type="time" className="itin-act-input"
+                    <input type="time" className="itin-act-input" style={{ minWidth: 78, flex: '0 0 auto' }}
                       value={a.time_end || ''} onChange={e => setAct(i, 'time_end', e.target.value)} />
                     <button type="button" title="Multi-hari"
                       onClick={() => toggleMultiDay(i)}
                       style={{
-                        padding: '3px 7px', borderRadius: 4, cursor: 'pointer', fontSize: '0.65rem',
+                        padding: '3px 8px', borderRadius: 4, cursor: 'pointer', fontSize: '0.65rem',
                         border: `1px solid ${multiDay.has(i) ? '#4a90d9' : 'var(--border)'}`,
                         background: multiDay.has(i) ? 'rgba(74,144,217,0.15)' : 'var(--bg3)',
-                        color: multiDay.has(i) ? '#4a90d9' : 'var(--muted)', whiteSpace: 'nowrap',
+                        color: multiDay.has(i) ? '#4a90d9' : 'var(--muted)', whiteSpace: 'nowrap', flexShrink: 0,
                       }}>
                       +hari
                     </button>
                     <input
                       type="text" inputMode="numeric" className="itin-act-input"
+                      style={{ flex: 1, minWidth: 100 }}
                       placeholder="Harga/orang"
                       value={a.price_per_person ? Number(String(a.price_per_person).replace(/\./g, '')).toLocaleString('id-ID') : ''}
                       onChange={e => setAct(i, 'price_per_person', e.target.value.replace(/\./g, '').replace(/\D/g, ''))}
                     />
-                    <input type="text" className="itin-act-input"
-                      placeholder="Catatan" value={a.note}
-                      onChange={e => setAct(i, 'note', e.target.value)} />
                     <button type="button"
                       className={`btn-icon${a.attachment_url ? ' itin-clip-active' : ''}`}
                       title="Lampiran" onClick={() => toggleFile(i)}>📎</button>
@@ -1235,12 +1224,6 @@ function TripModal({ trip, uid, onClose, onSaved, showToast }) {
                 </div>
               )}
             </div>
-          </div>
-
-          <div className="field">
-            <label>Catatan Trip (opsional)</label>
-            <input type="text" placeholder="Tips, info penting, dll."
-              value={form.notes} onChange={e => set('notes', e.target.value)} />
           </div>
 
           {err && <div className="modal-error">{err}</div>}
