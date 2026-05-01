@@ -1,5 +1,5 @@
 // src/pages/Home.jsx
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { fmt } from '../lib/format'
 import { useLang } from '../lib/LangContext'
@@ -41,6 +41,16 @@ const MODULES = [
     titleId: 'Pendakian',
     descId: 'Milestone gunung-gunung yang pernah kamu daki.',
     color: 'var(--purple)',
+    available: true,
+    hero: false,
+    primary: false,
+  },
+  {
+    id: 'wedding',
+    icon: '💒',
+    titleId: 'Wedding Planner',
+    descId: 'Kontrol budget pernikahan, vendor, dan pembayaran dalam satu dashboard.',
+    color: '#c084fc',
     available: true,
     hero: false,
     primary: false,
@@ -242,6 +252,14 @@ export default function Home({ session, onModule }) {
       }
     }
 
+    if (mod.id === 'wedding') {
+      return {
+        label: 'Wedding Budget',
+        val: 'Lihat Detail',
+        sub: 'Kelola budget & vendor',
+      }
+    }
+
     if (mod.id === 'hiking') {
       return {
         label: 'Total Pendakian',
@@ -281,6 +299,36 @@ export default function Home({ session, onModule }) {
             <div className="home-date">{todayStr()}</div>
           </div>
         </div>
+
+        {/* Home insight strip */}
+        {(assetTotal !== null || hikeCount !== null || tripCount !== null) && (
+          <div className="mod-insight-strip" style={{ marginBottom: '1.25rem' }}>
+            {assetTotal > 0 && (
+              <div className="mod-insight-chip mod-chip-positive">
+                <span className="mod-chip-icon">📊</span>
+                <span className="mod-chip-text">Total aset kamu hari ini: <strong>{fmt(assetTotal)}</strong></span>
+              </div>
+            )}
+            {hikeCount > 0 && (
+              <div className="mod-insight-chip mod-chip-info">
+                <span className="mod-chip-icon">🏔</span>
+                <span className="mod-chip-text">
+                  {hikeCount >= 7
+                    ? `${hikeCount} gunung didaki — kamu sudah complete 7 Summit of Java!`
+                    : hikeCount >= 3
+                    ? `${hikeCount} gunung didaki — ${7 - hikeCount} lagi untuk 7 Summit of Java!`
+                    : `${hikeCount} gunung sudah kamu daki. Terus jelajahi!`}
+                </span>
+              </div>
+            )}
+            {tripCount > 0 && (
+              <div className="mod-insight-chip mod-chip-info">
+                <span className="mod-chip-icon">✈</span>
+                <span className="mod-chip-text">{tripCount} perjalanan selesai tercatat — petualang sejati!</span>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="module-grid">
           {MODULES.map(mod => {

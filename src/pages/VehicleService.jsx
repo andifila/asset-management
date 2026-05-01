@@ -73,6 +73,68 @@ const VEHICLE_TYPES = [
   { value: 'mobil', label: 'Mobil', icon: '🚗' },
 ]
 
+function SvcSkeleton() {
+  return (
+    <main className="main-content">
+      <div style={{ display: 'flex', gap: 8, marginBottom: '1rem' }}>
+        {[1, 2].map(i => (
+          <span key={i} className="skeleton" style={{ height: 40, width: 160, borderRadius: 10, display: 'block' }} />
+        ))}
+      </div>
+      <div className="svc-vehicle-card" style={{ marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <span className="skel-line skel-h-lg" style={{ width: 40, borderRadius: 8 }} />
+          <div>
+            <span className="skel-line skel-h-md" style={{ width: 160, marginBottom: 6, display: 'block' }} />
+            <span className="skel-line skel-h-sm" style={{ width: 100, display: 'block' }} />
+          </div>
+        </div>
+      </div>
+      <div className="svc-status-grid" style={{ marginBottom: '1rem' }}>
+        {[1,2,3,4,5].map(i => (
+          <div key={i} className="svc-status-card">
+            <span className="skel-line skel-h-sm" style={{ width: '60%', marginBottom: 6, display: 'block' }} />
+            <span className="skel-line skel-h-md" style={{ width: '80%', marginBottom: 4, display: 'block' }} />
+            <span className="skel-line skel-h-sm" style={{ width: '50%', display: 'block' }} />
+          </div>
+        ))}
+      </div>
+      <div className="table-wrap">
+        {[1,2,3,4].map(i => (
+          <div key={i} style={{ display: 'flex', gap: 12, padding: '0.75rem 0', borderBottom: '1px solid var(--border)', alignItems: 'center' }}>
+            <span className="skel-line skel-h-sm" style={{ width: 80, display: 'block' }} />
+            <span className="skel-line skel-h-sm" style={{ width: 70, display: 'block' }} />
+            <span className="skel-line skel-h-sm" style={{ flex: 1, display: 'block' }} />
+            <span className="skel-line skel-h-sm" style={{ width: 80, display: 'block' }} />
+            <span className="skel-line skel-h-sm" style={{ width: 70, display: 'block' }} />
+          </div>
+        ))}
+      </div>
+    </main>
+  )
+}
+
+function generateSvcInsights(overdueComps, dueComps, lastServiceRec, totalBiaya, vehicleRecords) {
+  const out = []
+  if (overdueComps.length > 0)
+    out.push({ icon: '🚨', text: `${overdueComps.map(c => c.label).join(', ')} terlambat servis — segera ke bengkel!`, type: 'danger' })
+  else if (dueComps.length > 0)
+    out.push({ icon: '🔔', text: `${dueComps.map(c => c.label).join(', ')} mendekati batas interval — jadwalkan servis.`, type: 'warning' })
+  else if (vehicleRecords.length > 0)
+    out.push({ icon: '✅', text: 'Semua komponen dalam kondisi baik. Terus rawat kendaraanmu!', type: 'positive' })
+
+  if (lastServiceRec) {
+    const days = Math.floor((Date.now() - new Date(lastServiceRec.service_date)) / 86400000)
+    if (days > 120)
+      out.push({ icon: '📅', text: `Servis terakhir ${days} hari lalu — saatnya cek kendaraan!`, type: 'warning' })
+    else if (days < 7)
+      out.push({ icon: '🔧', text: `Baru servis ${days === 0 ? 'hari ini' : days + ' hari lalu'} — bagus!`, type: 'positive' })
+  }
+  if (totalBiaya > 0)
+    out.push({ icon: '💰', text: `Total Rp ${totalBiaya.toLocaleString('id-ID')} tercatat untuk kendaraan ini.`, type: 'info' })
+  return out.slice(0, 3)
+}
+
 export default function VehicleService({ session, onHome }) {
   const [vehicles,  setVehicles]  = useState([])
   const [selectedId, setSelectedId] = useState(null)
@@ -146,6 +208,14 @@ export default function VehicleService({ session, onHome }) {
   const vehicleRecords = records.filter(r => r.vehicle_id === selectedId)
   const kmNow = vehicle?.km_current || 0
 
+  // Urgency & summary
+  const components    = vehicle ? getComponents(vehicle) : []
+  const compStatuses  = components.map(comp => compStatus(comp, vehicleRecords, kmNow))
+  const overdueComps  = components.filter((_, i) => compStatuses[i]?.lvl === 'overdue')
+  const dueComps      = components.filter((_, i) => compStatuses[i]?.lvl === 'due')
+  const totalBiaya    = vehicleRecords.reduce((s, r) => s + (r.cost || 0), 0)
+  const lastServiceRec = vehicleRecords[0] || null
+
   const PAGE_SIZE = 10
   const filteredRecords = svcSearch.trim()
     ? vehicleRecords.filter(r => {
@@ -208,9 +278,7 @@ export default function VehicleService({ session, onHome }) {
         </div>
       </header>
 
-      {loading ? (
-        <div className="loading-state">Memuat data servis...</div>
-      ) : (
+      {loading ? <SvcSkeleton /> : (
         <main className="main-content">
           {/* Vehicle Selector */}
           <div className="svc-vehicle-selector">
@@ -289,6 +357,70 @@ export default function VehicleService({ session, onHome }) {
                     {vehicles.length > 1 && (
                       <button className="btn-icon del" title="Hapus kendaraan" onClick={() => handleDeleteVehicle(vehicle.id)}>✕</button>
                     )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Urgency Alert Banner */}
+              {overdueComps.length > 0 && (
+                <div className="svc-alert-banner svc-alert-overdue">
+                  <span className="svc-alert-icon">⚠</span>
+                  <div>
+                    <span className="svc-alert-title">Servis Terlambat!</span>
+                    <span className="svc-alert-sub">
+                      {overdueComps.map(c => c.label).join(', ')} sudah melewati interval — segera servis.
+                    </span>
+                  </div>
+                </div>
+              )}
+              {overdueComps.length === 0 && dueComps.length > 0 && (
+                <div className="svc-alert-banner svc-alert-due">
+                  <span className="svc-alert-icon">🔔</span>
+                  <div>
+                    <span className="svc-alert-title">Jadwal Servis Mendekat</span>
+                    <span className="svc-alert-sub">
+                      {dueComps.map(c => c.label).join(', ')} sudah mendekati batas interval.
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Smart Insights Strip */}
+              {(() => {
+                const chips = generateSvcInsights(overdueComps, dueComps, lastServiceRec, totalBiaya, vehicleRecords)
+                return chips.length > 0 ? (
+                  <div className="mod-insight-strip">
+                    {chips.map((c, i) => (
+                      <div key={i} className={`mod-insight-chip mod-chip-${c.type}`}>
+                        <span className="mod-chip-icon">{c.icon}</span>
+                        <span className="mod-chip-text">{c.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null
+              })()}
+
+              {/* Summary Stat Cards */}
+              <div className="svc-summary-row">
+                <div className="mod-stat-card">
+                  <div className="mod-stat-label">Total Catatan</div>
+                  <div className="mod-stat-val">{vehicleRecords.length}</div>
+                  <div className="mod-stat-sub">riwayat servis</div>
+                </div>
+                <div className="mod-stat-card">
+                  <div className="mod-stat-label">Total Biaya</div>
+                  <div className="mod-stat-val" style={{ fontSize: vehicleRecords.length ? '1rem' : '1.25rem', color: 'var(--amber)' }}>
+                    {totalBiaya ? 'Rp ' + totalBiaya.toLocaleString('id-ID') : '—'}
+                  </div>
+                  <div className="mod-stat-sub">semua servis</div>
+                </div>
+                <div className="mod-stat-card">
+                  <div className="mod-stat-label">Servis Terakhir</div>
+                  <div className="mod-stat-val" style={{ fontSize: '0.92rem', color: 'var(--blue)' }}>
+                    {lastServiceRec ? fmtDate(lastServiceRec.service_date) : '—'}
+                  </div>
+                  <div className="mod-stat-sub">
+                    {lastServiceRec ? fmtKm(lastServiceRec.km_at_service) : 'belum ada data'}
                   </div>
                 </div>
               </div>
@@ -400,6 +532,29 @@ export default function VehicleService({ session, onHome }) {
                 </table>
               </div>
               <Pagination total={filteredRecords.length} page={svcPage} onChange={setSvcPage} />
+
+              {/* Service Timeline */}
+              {vehicleRecords.length > 0 && (
+                <div className="svc-timeline-section">
+                  <div className="svc-timeline-title">Riwayat Singkat</div>
+                  <div className="svc-tl">
+                    {vehicleRecords.slice(0, 4).map((r, i) => (
+                      <div key={r.id} className="svc-tl-item">
+                        <div className="svc-tl-dot" style={{ background: i === 0 ? 'var(--blue)' : 'var(--border2)' }} />
+                        <div className="svc-tl-line" style={{ opacity: i === Math.min(3, vehicleRecords.length - 1) ? 0 : 1 }} />
+                        <div className="svc-tl-content">
+                          <div className="svc-tl-date">{fmtDate(r.service_date)}{r.km_at_service ? ` · ${r.km_at_service.toLocaleString('id-ID')} km` : ''}</div>
+                          <div className="svc-tl-service">{fmtItems(r.service_type)}</div>
+                          <div className="svc-tl-meta">
+                            {r.shop && <span className="svc-tl-shop">{r.shop}</span>}
+                            {r.cost ? <span className="svc-tl-cost">{fmtRp(r.cost)}</span> : null}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           )}
 

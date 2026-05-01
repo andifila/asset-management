@@ -177,6 +177,63 @@ const SEED_TRIPS = [
   },
 ]
 
+function ItinSkeleton() {
+  return (
+    <main className="main-content">
+      <div className="itin-smart-stats">
+        {[1,2,3,4].map(i => (
+          <div key={i} className="itin-smart-card">
+            <span className="skel-line skel-h-sm" style={{ width: '55%', display: 'block', marginBottom: 8 }} />
+            <span className="skel-line skel-h-lg" style={{ width: '70%', display: 'block', marginBottom: 6 }} />
+            <span className="skel-line skel-h-sm" style={{ width: '45%', display: 'block' }} />
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
+        <div style={{ flex: '0 0 260px' }}>
+          <span className="skeleton" style={{ height: 120, display: 'block', borderRadius: 12, marginBottom: 8 }} />
+        </div>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {[1,2,3].map(i => (
+            <span key={i} className="skeleton" style={{ height: 80, display: 'block', borderRadius: 12 }} />
+          ))}
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '0.75rem' }}>
+        {[1,2,3,4,5,6].map(i => (
+          <span key={i} className="skeleton" style={{ height: 100, display: 'block', borderRadius: 12 }} />
+        ))}
+      </div>
+    </main>
+  )
+}
+
+function generateItinInsights(trips, done, ongoing, upcoming, totalDaysTraveled, longestTrip, totalBudget) {
+  if (trips.length === 0) return []
+  const out = []
+  const doneLen = done.length
+
+  if (doneLen >= 10)
+    out.push({ icon: '🌍', text: `${doneLen} perjalanan selesai — traveler sejati! Terus jelajahi dunia.`, type: 'positive' })
+  else if (doneLen >= 5)
+    out.push({ icon: '✈', text: `${doneLen} destinasi dikunjungi. Kamu sudah keliling banyak tempat!`, type: 'positive' })
+  else if (doneLen > 0)
+    out.push({ icon: '📍', text: `${doneLen} perjalanan selesai tercatat. Petualangan baru menantimu!`, type: 'info' })
+
+  if (ongoing.length > 0)
+    out.push({ icon: '🚀', text: `Sedang dalam perjalanan ke ${ongoing[0].destination} — enjoy!`, type: 'positive' })
+  else if (upcoming.length > 0)
+    out.push({ icon: '🗓', text: `${upcoming.length} trip upcoming — jangan lupa persiapkan itinerary!`, type: 'info' })
+
+  if (longestTrip && longestTrip.days >= 7)
+    out.push({ icon: '🏖', text: `Trip terpanjang ${longestTrip.days} hari ke ${longestTrip.trip.destination} — liburan panjang yang seru!`, type: 'positive' })
+
+  if (totalBudget > 10000000)
+    out.push({ icon: '💰', text: `Total estimasi budget Rp ${(totalBudget/1e6).toFixed(1)}jt untuk semua perjalanan.`, type: 'info' })
+
+  return out.slice(0, 3)
+}
+
 export default function Itinerary({ session, onHome }) {
   const [trips,    setTrips]    = useState([])
   const [loading,  setLoading]  = useState(true)
@@ -300,35 +357,49 @@ export default function Itinerary({ session, onHome }) {
         </div>
       </header>
 
-      {loading ? (
-        <div className="loading-state">Memuat data trip...</div>
-      ) : (
+      {loading ? <ItinSkeleton /> : (
         <main className="main-content">
-          {/* Travel Insight */}
-          <div className="itin-section">
-            <div className="section-header">
-              <div className="section-title">📊 Travel Insight</div>
+          {/* Smart Stats Row */}
+          <div className="itin-smart-stats">
+            {[
+              { eyebrow: 'Trip Selesai',       val: doneTripsList.length || '—',              sub: `${trips.length} total trip`,                             color: 'var(--blue)',   accent: 'var(--blue)'   },
+              { eyebrow: 'Hari Perjalanan',     val: totalDaysTraveled > 0 ? `${totalDaysTraveled}` : '—', sub: 'total hari',                              color: 'var(--green)',  accent: 'var(--green)'  },
+              { eyebrow: 'Total Budget',        val: totalBudget > 0 ? `${(totalBudget/1e6).toFixed(1)}jt` : '—', sub: totalBudget > 0 ? 'estimasi' : 'belum ada', color: 'var(--purple)', accent: 'var(--purple)' },
+              { eyebrow: 'Avg Biaya/Trip',      val: avgCostPerTrip > 0 ? `${(avgCostPerTrip/1e6).toFixed(1)}jt` : '—', sub: 'per orang',                 color: 'var(--amber)',  accent: 'var(--amber)'  },
+            ].map((c, i) => (
+              <div key={i} className="itin-smart-card">
+                <div className="itin-smart-eyebrow">{c.eyebrow}</div>
+                <div className="itin-smart-val" style={{ color: c.color }}>{c.val}</div>
+                <div className="itin-smart-sub">{c.sub}</div>
+                <div className="itin-smart-accent" style={{ background: c.accent }} />
+              </div>
+            ))}
+          </div>
+
+          {/* Smart Insights Strip */}
+          {(() => {
+            const chips = generateItinInsights(trips, done, ongoing, upcoming, totalDaysTraveled, longestTrip, totalBudget)
+            return chips.length > 0 ? (
+              <div className="mod-insight-strip">
+                {chips.map((c, i) => (
+                  <div key={i} className={`mod-insight-chip mod-chip-${c.type}`}>
+                    <span className="mod-chip-icon">{c.icon}</span>
+                    <span className="mod-chip-text">{c.text}</span>
+                  </div>
+                ))}
+              </div>
+            ) : null
+          })()}
+
+          {/* Action Bar */}
+          <div className="itin-action-bar">
+            <div className="itin-action-left">
+              <div className="itin-action-title">Perjalananku</div>
+              <div className="itin-action-sub">{ongoing.length > 0 ? `Sedang berlangsung: ${ongoing[0].destination}` : upcoming.length > 0 ? `${upcoming.length} trip upcoming` : `${doneTripsList.length} destinasi dikunjungi`}</div>
             </div>
-            <div className="itin-insight-grid">
-              <div className="itin-insight-card">
-                <div className="itin-insight-label">Total hari perjalanan</div>
-                <div className="itin-insight-val" style={{ color: '#4a90d9' }}>
-                  {totalDaysTraveled > 0 ? totalDaysTraveled : '—'}
-                  {totalDaysTraveled > 0 && <span style={{ fontSize: '0.7rem', fontWeight: 400, color: 'var(--muted)', marginLeft: 4 }}>hari</span>}
-                </div>
-                <div className="itin-insight-sub">{doneTripsList.length} trip selesai</div>
-              </div>
-              <div className="itin-insight-card">
-                <div className="itin-insight-label">Total budget</div>
-                <div className="itin-insight-val" style={{ color: '#8b7de8' }}>{totalBudget > 0 ? fmtRp(totalBudget) : '—'}</div>
-                {tripsWithBudget.length > 0 && <div className="itin-insight-sub">{tripsWithBudget.length} trip tercatat</div>}
-              </div>
-              <div className="itin-insight-card">
-                <div className="itin-insight-label">Avg cost/trip</div>
-                <div className="itin-insight-val" style={{ color: '#3dba7e' }}>{avgCostPerTrip > 0 ? fmtRp(avgCostPerTrip) : '—'}</div>
-                {avgCostPerTrip > 0 && <div className="itin-insight-sub">per orang</div>}
-              </div>
-            </div>
+            <button className="itin-action-cta" onClick={() => { setEditTrip(null); setShowAdd(true) }}>
+              + Trip Baru
+            </button>
           </div>
 
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>

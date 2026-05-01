@@ -1,7 +1,7 @@
 // src/pages/Dashboard.jsx
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
-import Summary from '../components/Summary'
+import Summary, { SummarySkeletonContent } from '../components/Summary'
 import BibitTable from '../components/BibitTable'
 import BinanceTable from '../components/BinanceTable'
 import PhysicalTable from '../components/PhysicalTable'
@@ -141,7 +141,9 @@ export default function Dashboard({ session, onHome, defaultTabType }) {
     const tab = tabs.find(t => t.id === activeTab)
     if (!tab) return null
     switch (tab.type) {
-      case 'summary': return <Summary data={data} uid={uid} onRefresh={fetchAll} showToast={showToast} />
+      case 'summary': return <Summary data={data} uid={uid} onRefresh={fetchAll} showToast={showToast}
+        onTab={type => { const tab = tabs.find(t => t.type === type); if (tab) setActiveTab(tab.id) }}
+        userName={name} />
       case 'bibit':   return <BibitTable data={data.bibit} uid={uid} onRefresh={fetchAll} showToast={showToast} />
       case 'binance': return <BinanceTable data={data.binance} uid={uid} onRefresh={fetchAll} showToast={showToast} />
       case 'fisik':   return <PhysicalTable data={data.fisik} uid={uid} onRefresh={fetchAll} showToast={showToast} />
@@ -241,7 +243,12 @@ export default function Dashboard({ session, onHome, defaultTabType }) {
 
       <main className="main-content">
         {loading || !tabsLoaded
-          ? <div className="loading-state">{t('loading')}</div>
+          ? (() => {
+              const tab = tabs.find(t => t.id === activeTab)
+              return tab?.type === 'summary' || !tab
+                ? <SummarySkeletonContent />
+                : <div className="loading-state">{t('loading')}</div>
+            })()
           : renderContent()
         }
       </main>
