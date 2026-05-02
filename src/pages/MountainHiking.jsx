@@ -579,13 +579,6 @@ function HikeModal({ hike, uid, onClose, onSaved, showToast }) {
           </div>
 
           <div className="field">
-            <label>{t('notes')} <span style={{ color: 'var(--muted)', fontWeight: 400, textTransform: 'none' }}>{t('optional')}</span></label>
-            <textarea rows={2} placeholder="Cuaca, kondisi jalur, kesan…" value={form.notes}
-              onChange={e => set('notes', e.target.value)}
-              style={{ resize: 'vertical', minHeight: 56 }} />
-          </div>
-
-          <div className="field">
             <label>{t('hikeLabelPhotos')}</label>
             <input
               type="url"

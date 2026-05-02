@@ -158,49 +158,57 @@ function SetupModal({ uid, items, settings, onClose, onSaved, showToast }) {
     if (new Set(names).size !== names.length) { setErr(t('wpErrDupCat')); return }
 
     setSaving(true)
+    setErr('')
 
-    // 1. Save total budget
-    const budgetNum = totalBudget ? Number(parseNum(totalBudget)) : 0
-    const { error: sErr } = await supabase.from('wedding_settings')
-      .upsert({ user_id: uid, total_budget: budgetNum }, { onConflict: 'user_id' })
-    if (sErr) { setErr(sErr.message); setSaving(false); return }
+    try {
+      // 1. Save total budget (non-blocking — don't abort category saves if this fails)
+      const budgetNum = totalBudget ? Number(parseNum(totalBudget)) : 0
+      const { error: sErr } = await supabase.from('wedding_settings')
+        .upsert({ user_id: uid, total_budget: budgetNum }, { onConflict: 'user_id' })
+      if (sErr) {
+        // Try insert as fallback (in case upsert constraint issue)
+        await supabase.from('wedding_settings').insert({ user_id: uid, total_budget: budgetNum })
+      }
 
-    // 2. Delete marked rows
-    for (const row of rows.filter(r => r.deleted && r.id)) {
-      await supabase.from('wedding_transactions').delete().eq('budget_item_id', row.id).eq('user_id', uid)
-      await supabase.from('wedding_budget_items').delete().eq('id', row.id).eq('user_id', uid)
-    }
+      // 2. Delete marked rows
+      for (const row of rows.filter(r => r.deleted && r.id)) {
+        await supabase.from('wedding_transactions').delete().eq('budget_item_id', row.id).eq('user_id', uid)
+        await supabase.from('wedding_budget_items').delete().eq('id', row.id).eq('user_id', uid)
+      }
 
-    // 3. Insert new rows
-    const toInsert = activeRows.filter(r => !r.id && r.category.trim()).map(r => ({
-      user_id:    uid,
-      category:   r.category.trim(),
-      vendor:     r.category.trim(),
-      budget_max: r.budget_max ? Number(parseNum(r.budget_max)) : 0,
-    }))
-    if (toInsert.length > 0) {
-      const { error } = await supabase.from('wedding_budget_items').insert(toInsert)
-      if (error) { setErr(error.message); setSaving(false); return }
-    }
+      // 3. Insert new rows
+      const toInsert = activeRows.filter(r => !r.id && r.category.trim()).map(r => ({
+        user_id:    uid,
+        category:   r.category.trim(),
+        vendor:     r.category.trim(),
+        budget_max: r.budget_max ? Number(parseNum(r.budget_max)) : 0,
+      }))
+      if (toInsert.length > 0) {
+        const { error } = await supabase.from('wedding_budget_items').insert(toInsert)
+        if (error) { setErr(error.message); setSaving(false); return }
+      }
 
-    // 4. Update existing rows
-    const errs = await Promise.all(
-      activeRows.filter(r => r.id).map(r =>
-        supabase.from('wedding_budget_items')
-          .update({
-            category:   r.category.trim() || r.category,
-            vendor:     r.category.trim() || r.category,
-            budget_max: r.budget_max ? Number(parseNum(r.budget_max)) : 0,
-          })
-          .eq('id', r.id).eq('user_id', uid)
-          .then(res => res.error)
+      // 4. Update existing rows
+      const errs = await Promise.all(
+        activeRows.filter(r => r.id).map(r =>
+          supabase.from('wedding_budget_items')
+            .update({
+              category:   r.category.trim() || r.category,
+              budget_max: r.budget_max ? Number(parseNum(r.budget_max)) : 0,
+            })
+            .eq('id', r.id).eq('user_id', uid)
+            .then(res => res.error)
+        )
       )
-    )
-    const firstErr = errs.find(Boolean)
-    if (firstErr) { setErr(firstErr.message); setSaving(false); return }
+      const firstErr = errs.find(Boolean)
+      if (firstErr) { setErr(firstErr.message || 'Update gagal'); setSaving(false); return }
 
-    showToast(t('wpSetupSaved'))
-    onSaved(); onClose()
+      showToast(t('wpSetupSaved'))
+      onSaved(); onClose()
+    } catch (e) {
+      setErr(e.message || 'Terjadi kesalahan')
+      setSaving(false)
+    }
   }
 
   const deletedCount = rows.filter(r => r.deleted).length
