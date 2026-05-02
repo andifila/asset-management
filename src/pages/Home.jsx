@@ -5,66 +5,28 @@ import { fmt } from '../lib/format'
 import { useLang } from '../lib/LangContext'
 
 const MODULES = [
-  {
-    id: 'asset',
-    icon: '◈',
-    titleId: 'Asset Tracking',
-    descId: 'Pantau portofolio aset liquid, investasi, dan fisik kamu secara menyeluruh.',
-    color: 'var(--blue)',
-    available: true,
-    hero: true,
-    primary: true,
-  },
-  {
-    id: 'service',
-    icon: '⚙',
-    titleId: 'Servis Kendaraan',
-    descId: 'Catat riwayat servis motor & mobil, jadwal, dan biaya.',
-    color: 'var(--amber)',
-    available: true,
-    hero: false,
-    primary: true,
-  },
-  {
-    id: 'itinerary',
-    icon: '✈',
-    titleId: 'Itinerary',
-    descId: 'Milestone tempat-tempat yang pernah kamu datangi.',
-    color: 'var(--green)',
-    available: true,
-    hero: false,
-    primary: false,
-  },
-  {
-    id: 'hiking',
-    icon: '▲',
-    titleId: 'Pendakian',
-    descId: 'Milestone gunung-gunung yang pernah kamu daki.',
-    color: 'var(--purple)',
-    available: true,
-    hero: false,
-    primary: false,
-  },
-  {
-    id: 'wedding',
-    icon: '💒',
-    titleId: 'Wedding Planner',
-    descId: 'Kontrol budget pernikahan, vendor, dan pembayaran dalam satu dashboard.',
-    color: '#c084fc',
-    available: true,
-    hero: false,
-    primary: false,
-  },
+  { id: 'asset',     icon: '◈', titleKey: 'homeModAssetTitle', descKey: 'homeModAssetDesc', color: 'var(--blue)',   available: true, hero: true,  primary: true  },
+  { id: 'service',   icon: '⚙', titleKey: 'homeModSvcTitle',   descKey: 'homeModSvcDesc',   color: 'var(--amber)',  available: true, hero: false, primary: true  },
+  { id: 'itinerary', icon: '✈', titleKey: 'homeModItinTitle',  descKey: 'homeModItinDesc',  color: 'var(--green)', available: true, hero: false, primary: false },
+  { id: 'hiking',    icon: '▲', titleKey: 'homeModHikeTitle',  descKey: 'homeModHikeDesc',  color: 'var(--purple)',available: true, hero: false, primary: false },
+  { id: 'wedding',   icon: '💒',titleKey: 'homeModWpTitle',    descKey: 'homeModWpDesc',    color: '#c084fc',      available: true, hero: false, primary: false },
 ]
 
-const fmtDate = d =>
-  d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : null
+const fmtDate = (d, lang) =>
+  d ? new Date(d).toLocaleDateString(lang === 'en' ? 'en-US' : 'id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : null
 
 const daysSince = d => d ? Math.floor((Date.now() - new Date(d)) / 86400000) : null
 
-const relTime = d => {
+const relTime = (d, lang) => {
   const n = daysSince(d)
   if (n === null) return null
+  if (lang === 'en') {
+    if (n === 0) return 'today'
+    if (n === 1) return 'yesterday'
+    if (n < 30)  return `${n} days ago`
+    if (n < 365) return `${Math.floor(n / 30)} months ago`
+    return `${Math.floor(n / 365)} years ago`
+  }
   if (n === 0) return 'hari ini'
   if (n === 1) return 'kemarin'
   if (n < 30)  return `${n} hari lalu`
@@ -72,8 +34,13 @@ const relTime = d => {
   return `${Math.floor(n / 365)} tahun lalu`
 }
 
-const getGreeting = () => {
+const getGreeting = (lang) => {
   const h = new Date().getHours()
+  if (lang === 'en') {
+    if (h < 5 || h >= 19) return 'Good evening'
+    if (h < 11) return 'Good morning'
+    return 'Good afternoon'
+  }
   if (h < 5)  return 'Selamat malam'
   if (h < 11) return 'Selamat pagi'
   if (h < 15) return 'Selamat siang'
@@ -81,8 +48,15 @@ const getGreeting = () => {
   return 'Selamat malam'
 }
 
-const getSubtitle = () => {
+const getSubtitle = (lang) => {
   const h = new Date().getHours()
+  if (lang === 'en') {
+    if (h < 5)  return 'Still up? Take care of your health!'
+    if (h < 11) return 'Good morning, ready to manage your day?'
+    if (h < 15) return 'Stay productive this afternoon!'
+    if (h < 19) return 'Good afternoon, check your activity updates.'
+    return 'Any updates to log tonight?'
+  }
   if (h < 5)  return 'Masih terjaga? Jaga kesehatan ya!'
   if (h < 11) return 'Semangat pagi, siap kelola aktivitasmu hari ini?'
   if (h < 15) return 'Tetap produktif siang ini!'
@@ -90,7 +64,7 @@ const getSubtitle = () => {
   return 'Malam ini, ada yang perlu dicatat?'
 }
 
-const todayStr = () => new Date().toLocaleDateString('id-ID', {
+const todayStr = (lang) => new Date().toLocaleDateString(lang === 'en' ? 'en-US' : 'id-ID', {
   weekday: 'long', day: 'numeric', month: 'long',
 })
 
@@ -135,7 +109,7 @@ const CheckIcon = () => (
 )
 
 export default function Home({ session, onModule }) {
-  const { lang, toggle: toggleLang } = useLang()
+  const { lang, toggle: toggleLang, t } = useLang()
   const [assetTotal,  setAssetTotal]  = useState(null)
   const [showAssets,  setShowAssets]  = useState(() => localStorage.getItem('showAssets') !== 'false')
   const [lastService, setLastService] = useState(null)
@@ -205,13 +179,13 @@ export default function Home({ session, onModule }) {
   const getModuleStat = (mod) => {
     if (mod.id === 'asset') {
       return {
-        label: 'Total Aset',
+        label: t('homeStatTotalAset'),
         val: assetTotal === null ? '...' : (showAssets ? fmt(assetTotal) : '••••••'),
         extra: (
           <button
             className="asset-eye-btn"
             onClick={e => { e.stopPropagation(); toggleAssets() }}
-            title={showAssets ? 'Sembunyikan' : 'Tampilkan'}
+            title={showAssets ? t('homeStatHide') : t('homeStatShow')}
           >
             {showAssets ? <EyeOpen /> : <EyeOff />}
           </button>
@@ -220,7 +194,7 @@ export default function Home({ session, onModule }) {
     }
 
     if (mod.id === 'service') {
-      if (!lastService) return { label: 'Servis Terakhir', val: '—', sub: null, next: null }
+      if (!lastService) return { label: t('homeStatServisLast'), val: '—', sub: null, next: null }
       let svcLabel = lastService.service_type || '—'
       try {
         const items = JSON.parse(lastService.service_type)
@@ -234,36 +208,36 @@ export default function Home({ session, onModule }) {
         : daysUntil <= 14 ? 'warn'
         : 'ok'
       const nextText = daysUntil === null ? null
-        : daysUntil <= 0 ? `Lewat jadwal ${Math.abs(daysUntil)} hari`
-        : `Servis berikutnya dalam ${daysUntil} hari`
+        : daysUntil <= 0 ? `${t('homeOverdue')} ${Math.abs(daysUntil)} ${t('homeNextDays')}`
+        : `${t('homeNextIn')} ${daysUntil} ${t('homeNextDays')}`
       return {
-        label: 'Servis Terakhir',
+        label: t('homeStatServisLast'),
         val: svcLabel,
-        sub: `${fmtDate(lastService.service_date)} · ${relTime(lastService.service_date)}`,
+        sub: `${fmtDate(lastService.service_date, lang)} · ${relTime(lastService.service_date, lang)}`,
         next: nextText ? { text: nextText, type: nextType } : null,
       }
     }
 
     if (mod.id === 'itinerary') {
       return {
-        label: 'Perjalanan Selesai',
+        label: t('homeStatPerjalanan'),
         val: tripCount === null ? '...' : `${tripCount} trip`,
-        sub: lastTrip ? `Terakhir: ${lastTrip.destination}` : null,
+        sub: lastTrip ? `${lang === 'en' ? 'Last' : 'Terakhir'}: ${lastTrip.destination}` : null,
       }
     }
 
     if (mod.id === 'wedding') {
       return {
-        label: 'Wedding Budget',
-        val: 'Lihat Detail',
-        sub: 'Kelola budget & vendor',
+        label: t('homeStatWpBudget'),
+        val: t('homeStatWpDetail'),
+        sub: t('homeStatWpSub'),
       }
     }
 
     if (mod.id === 'hiking') {
       return {
-        label: 'Total Pendakian',
-        val: hikeCount === null ? '...' : `${hikeCount} gunung`,
+        label: t('homeStatTotalHike'),
+        val: hikeCount === null ? '...' : `${hikeCount} ${lang === 'en' ? 'peaks' : 'gunung'}`,
         sub: lastHike
           ? (lastHike.elevation
             ? `${lastHike.mountain} · ${lastHike.elevation.toLocaleString('id-ID')} mdpl`
@@ -298,10 +272,10 @@ export default function Home({ session, onModule }) {
 
       <main className="home-main">
         <div className="home-greeting">
-          <div className="home-greeting-text">{getGreeting()}, {name}!</div>
+          <div className="home-greeting-text">{getGreeting(lang)}, {name}!</div>
           <div className="home-greeting-meta">
-            <div className="home-greeting-sub">{getSubtitle()}</div>
-            <div className="home-date">{todayStr()}</div>
+            <div className="home-greeting-sub">{getSubtitle(lang)}</div>
+            <div className="home-date">{todayStr(lang)}</div>
           </div>
         </div>
 
@@ -318,18 +292,28 @@ export default function Home({ session, onModule }) {
               <div className="mod-insight-chip mod-chip-info">
                 <span className="mod-chip-icon">🏔</span>
                 <span className="mod-chip-text">
-                  {hikeCount >= 7
-                    ? `${hikeCount} gunung didaki — kamu sudah complete 7 Summit of Java!`
-                    : hikeCount >= 3
-                    ? `${hikeCount} gunung didaki — ${7 - hikeCount} lagi untuk 7 Summit of Java!`
-                    : `${hikeCount} gunung sudah kamu daki. Terus jelajahi!`}
+                  {lang === 'en'
+                    ? hikeCount >= 7
+                      ? `${hikeCount} mountains climbed — 7 Summit of Java complete!`
+                      : hikeCount >= 3
+                      ? `${hikeCount} mountains climbed — ${7 - hikeCount} more for 7 Summit of Java!`
+                      : `${hikeCount} mountains climbed. Keep exploring!`
+                    : hikeCount >= 7
+                      ? `${hikeCount} gunung didaki — kamu sudah complete 7 Summit of Java!`
+                      : hikeCount >= 3
+                      ? `${hikeCount} gunung didaki — ${7 - hikeCount} lagi untuk 7 Summit of Java!`
+                      : `${hikeCount} gunung sudah kamu daki. Terus jelajahi!`}
                 </span>
               </div>
             )}
             {tripCount > 0 && (
               <div className="mod-insight-chip mod-chip-info">
                 <span className="mod-chip-icon">✈</span>
-                <span className="mod-chip-text">{tripCount} perjalanan selesai tercatat — petualang sejati!</span>
+                <span className="mod-chip-text">
+                  {lang === 'en'
+                    ? `${tripCount} trips completed — true adventurer!`
+                    : `${tripCount} perjalanan selesai tercatat — petualang sejati!`}
+                </span>
               </div>
             )}
           </div>
@@ -363,11 +347,11 @@ export default function Home({ session, onModule }) {
                           <div className="module-icon" style={{ color: mod.color }}>{mod.icon}</div>
                         </div>
                         <span className="module-badge badge-active">
-                          <span className="badge-dot" />Aktif
+                          <span className="badge-dot" />{t('homeBadgeActive')}
                         </span>
                       </div>
-                      <div className="module-title module-title-lg">{mod.titleId}</div>
-                      <div className="module-desc">{mod.descId}</div>
+                      <div className="module-title module-title-lg">{t(mod.titleKey)}</div>
+                      <div className="module-desc">{t(mod.descKey)}</div>
                     </div>
 
                     <div className="module-hero-aside">
@@ -384,7 +368,7 @@ export default function Home({ session, onModule }) {
                         className="module-cta-btn hero-cta"
                         onClick={e => { e.stopPropagation(); onModule(mod.id) }}
                       >
-                        Buka Modul <ArrowRight />
+                        {t('homeCtaOpen')} <ArrowRight />
                       </button>
                     </div>
                   </div>
@@ -397,12 +381,12 @@ export default function Home({ session, onModule }) {
                       </div>
                       <span className={`module-badge ${mod.available ? 'badge-active' : 'badge-soon'}`}>
                         <span className="badge-dot" />
-                        {mod.available ? 'Aktif' : 'Segera'}
+                        {mod.available ? t('homeBadgeActive') : t('homeBadgeSoon')}
                       </span>
                     </div>
 
-                    <div className="module-title">{mod.titleId}</div>
-                    <div className="module-desc">{mod.descId}</div>
+                    <div className="module-title">{t(mod.titleKey)}</div>
+                    <div className="module-desc">{t(mod.descKey)}</div>
 
                     {stat && (
                       <div className="module-stat">
@@ -426,7 +410,7 @@ export default function Home({ session, onModule }) {
                       onClick={e => { e.stopPropagation(); mod.available && onModule(mod.id) }}
                       disabled={!mod.available}
                     >
-                      {mod.available ? 'Lihat Detail' : 'Belum Tersedia'}
+                      {mod.available ? t('homeCtaView') : t('homeCtaSoon')}
                       {mod.available && <ArrowRight />}
                     </button>
                   </>

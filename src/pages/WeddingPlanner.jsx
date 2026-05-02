@@ -706,7 +706,7 @@ export default function WeddingPlanner({ session, onHome }) {
           <span style={{ color: 'var(--purple)', fontSize: '1.1rem' }}>💒</span>
           <span>{t('wpTitle')}</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="topbar-right">
           {!isEmpty && (
             <button className="asset-btn-primary" onClick={() => openAddTx(null)}
               style={{ padding: '0.38rem 0.875rem', fontSize: '0.78rem' }}>
@@ -718,7 +718,7 @@ export default function WeddingPlanner({ session, onHome }) {
             <span className="lang-sep">·</span>
             <span className={lang === 'en' ? 'lang-active' : ''}>EN</span>
           </button>
-          <button className="btn-back" onClick={onHome}>← Beranda</button>
+          <button className="btn-home" onClick={onHome}>← Home</button>
         </div>
       </header>
 
