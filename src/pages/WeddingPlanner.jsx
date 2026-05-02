@@ -155,7 +155,7 @@ function SetupModal({ uid, items, settings, onClose, onSaved, showToast }) {
   const save = async () => {
     const activeRows = rows.filter(r => !r.deleted)
     const names = activeRows.map(r => r.category.trim()).filter(Boolean)
-    if (new Set(names).size !== names.length) { setErr('Ada nama kategori yang duplikat'); return }
+    if (new Set(names).size !== names.length) { setErr(t('wpErrDupCat')); return }
 
     setSaving(true)
 
@@ -199,7 +199,7 @@ function SetupModal({ uid, items, settings, onClose, onSaved, showToast }) {
     const firstErr = errs.find(Boolean)
     if (firstErr) { setErr(firstErr.message); setSaving(false); return }
 
-    showToast('Setup berhasil disimpan')
+    showToast(t('wpSetupSaved'))
     onSaved(); onClose()
   }
 
@@ -235,7 +235,7 @@ function SetupModal({ uid, items, settings, onClose, onSaved, showToast }) {
               />
             </div>
             <div style={{ fontSize: '0.67rem', color: 'var(--muted)', marginTop: 6 }}>
-              Budget global pernikahan — dasar perhitungan sisa keseluruhan
+              {t('wpGlobalBudgetHint')}
             </div>
           </div>
 
@@ -305,7 +305,7 @@ function SetupModal({ uid, items, settings, onClose, onSaved, showToast }) {
               padding: '0.45rem 0.6rem', background: 'rgba(224,82,82,0.08)',
               border: '1px solid rgba(224,82,82,0.2)', borderRadius: 7,
             }}>
-              ⚠ {deletedCount} kategori akan dihapus beserta semua transaksinya. Klik ↩ untuk batalkan.
+              ⚠ {deletedCount} {t('wpDeleteWarning')}
             </div>
           )}
 
@@ -338,7 +338,7 @@ function VendorPickerModal({ category, uid, vendors, currentVendorId, onConfirm,
   const selV = vendors.find(v => v.id === selectedId)
 
   const handleSaveNew = async () => {
-    if (!newForm.name.trim()) { setAddErr('Nama vendor wajib diisi'); return }
+    if (!newForm.name.trim()) { setAddErr(t('wpErrVendorName')); return }
     setAddSaving(true)
     const { data, error } = await supabase.from('wedding_vendors').insert({
       user_id:        uid,

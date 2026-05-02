@@ -437,21 +437,29 @@ tbody tr:hover .actions .row-actions { opacity: 1; }
 .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-save:hover:not(:disabled) { opacity: 0.85; }
 
+/* GLOBAL INPUT BASE — dark theme for all inputs/selects/textareas */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+select, textarea {
+  background: var(--bg3); border: 1px solid var(--border2);
+  border-radius: var(--radius); color: var(--text);
+  font-family: 'Sora', sans-serif; font-size: 0.82rem;
+  box-sizing: border-box;
+}
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+select:focus, textarea:focus { outline: none; border-color: var(--blue); }
+input::placeholder, textarea::placeholder { color: var(--muted); }
+
 /* FORM */
 .field { margin-bottom: 0.875rem; }
 .field label {
   display: block; font-size: 0.68rem; text-transform: uppercase;
   letter-spacing: 0.06em; color: var(--muted); margin-bottom: 5px;
 }
-.field input, .field select {
+.field input, .field select, .field textarea {
   width: 100%; padding: 0.5rem 0.75rem;
-  background: var(--bg3); border: 1px solid var(--border2);
-  border-radius: var(--radius); color: var(--text);
-  font-family: 'Sora', sans-serif; font-size: 0.82rem;
   transition: border-color 0.15s;
 }
-.field input:focus, .field select:focus { outline: none; border-color: var(--blue); }
-.field input::placeholder { color: var(--muted); }
+.field textarea { resize: vertical; }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
 /* JHT CARD */

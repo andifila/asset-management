@@ -193,7 +193,7 @@ export default function MountainHiking({ session, onHome }) {
   const toastKey = useRef(0)
 
   const uid    = session.user.id
-  const { lang, toggle: toggleLang } = useLang()
+  const { lang, t, toggle: toggleLang } = useLang()
   const avatar = session.user.user_metadata?.avatar_url
   const uname  = session.user.user_metadata?.full_name || session.user.email
 
@@ -228,7 +228,7 @@ export default function MountainHiking({ session, onHome }) {
   const handleDelete = async (id) => {
     await supabase.from('hikes').delete().eq('id', id).eq('user_id', uid)
     setHikes(prev => prev.filter(h => h.id !== id))
-    showToast('Catatan dihapus')
+    showToast(t('hikeDeletedToast'))
   }
 
   const parse     = d => { if (!d) return 0; const [y,m,dd]=d.split('-'); return new Date(+y,+m-1,+dd) }
@@ -260,7 +260,7 @@ export default function MountainHiking({ session, onHome }) {
     <div className="app">
       <header className="topbar">
         <div className="topbar-brand" style={{ cursor: 'pointer' }} onClick={onHome}>
-          ▲ <span>Mountain Hiking</span>
+          ▲ <span>{t('hikeTitle')}</span>
         </div>
         <div className="topbar-right">
           {onHome && <button className="btn-home" onClick={onHome}>← Home</button>}
@@ -280,28 +280,28 @@ export default function MountainHiking({ session, onHome }) {
           {/* ── Summary stat cards ── */}
           <div className="mod-stat-row">
             <div className="mod-stat-card">
-              <div className="mod-stat-label">Total Pendakian</div>
+              <div className="mod-stat-label">{t('hikeTotalHikes')}</div>
               <div className="mod-stat-val">{hikes.length}</div>
-              <div className="mod-stat-sub">gunung didaki</div>
+              <div className="mod-stat-sub">{t('hikeMountainsSub')}</div>
             </div>
             <div className="mod-stat-card">
-              <div className="mod-stat-label">Summit Berhasil</div>
+              <div className="mod-stat-label">{t('hikeSummitSuccess')}</div>
               <div className="mod-stat-val" style={{ color: 'var(--green)' }}>{summits}</div>
               <div className="mod-stat-sub">
-                {hikes.length ? `${Math.round(summits / hikes.length * 100)}% success rate` : '—'}
+                {hikes.length ? `${Math.round(summits / hikes.length * 100)}% ${t('hikeSuccessRate')}` : '—'}
               </div>
             </div>
             <div className="mod-stat-card">
-              <div className="mod-stat-label">Tertinggi Didaki</div>
+              <div className="mod-stat-label">{t('hikeHighest')}</div>
               <div className="mod-stat-val" style={{ color: 'var(--blue)' }}>
                 {maxElevation ? maxElevation.toLocaleString('id-ID') : '—'}
               </div>
-              <div className="mod-stat-sub">mdpl</div>
+              <div className="mod-stat-sub">{t('hikeElevationUnit')}</div>
             </div>
             <div className="mod-stat-card">
-              <div className="mod-stat-label">Kota / Lokasi</div>
+              <div className="mod-stat-label">{t('hikeCitiesVisited')}</div>
               <div className="mod-stat-val">{citiesVisited}</div>
-              <div className="mod-stat-sub">kota berbeda</div>
+              <div className="mod-stat-sub">{t('hikeCitiesSub')}</div>
             </div>
           </div>
 
@@ -341,17 +341,17 @@ export default function MountainHiking({ session, onHome }) {
           {/* ── Log Pendakian ── */}
           <div className="section-header">
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-              <div className="section-title">Log Pendakian</div>
+              <div className="section-title">{t('hikeLogTitle')}</div>
               {hikes.length > 0 && (
                 <span style={{ fontSize: '0.72rem', color: 'var(--muted)' }}>
                   <span style={{ fontWeight: 700, color: 'var(--text)', fontFamily: "'DM Mono', monospace" }}>{hikes.length}</span>
-                  {' '}pendakian &middot;{' '}
+                  {' '}{t('hikeRecords')} &middot;{' '}
                   <span style={{ fontWeight: 700, color: 'var(--green)', fontFamily: "'DM Mono', monospace" }}>{summits}</span> summit
                 </span>
               )}
             </div>
             <button className="btn-add" onClick={() => { setEditHike(null); setShowAdd(true) }}>
-              + Catat Pendakian
+              {t('hikeAddBtn')}
             </button>
           </div>
 
@@ -360,21 +360,21 @@ export default function MountainHiking({ session, onHome }) {
               {sorted.length === 0 ? (
                 <div className="empty-state-rich">
                   <div className="empty-icon">▲</div>
-                  <div className="empty-title">Belum ada catatan pendakian</div>
-                  <div className="empty-sub">Yuk mulai catat gunung pertama yang kamu daki!</div>
+                  <div className="empty-title">{t('hikeEmpty')}</div>
+                  <div className="empty-sub">{t('hikeEmptySub')}</div>
                   <button className="btn-primary" onClick={() => { setEditHike(null); setShowAdd(true) }}>
-                    + Catat Pendakian Pertama
+                    {t('hikeAddFirst')}
                   </button>
                 </div>
               ) : (
                 <table>
                   <thead>
                     <tr>
-                      <th>Gunung</th>
-                      <th className="num">mdpl</th>
-                      <th>Tanggal</th>
-                      <th>Durasi</th>
-                      <th>Status</th>
+                      <th>{t('hikeThMountain')}</th>
+                      <th className="num">{t('hikeElevationUnit')}</th>
+                      <th>{t('hikeThDate')}</th>
+                      <th>{t('hikeThDuration')}</th>
+                      <th>{t('hikeThStatus')}</th>
                       <th className="actions" />
                     </tr>
                   </thead>
@@ -478,6 +478,7 @@ export default function MountainHiking({ session, onHome }) {
 }
 
 function HikeModal({ hike, uid, onClose, onSaved, showToast }) {
+  const { t } = useLang()
   const today = new Date().toISOString().split('T')[0]
   const parsed = parseHikeNotes(hike?.notes)
   const [form, setForm] = useState({
@@ -498,10 +499,10 @@ function HikeModal({ hike, uid, onClose, onSaved, showToast }) {
 
   const save = async () => {
     if (!form.mountain.trim() || !form.start_date) {
-      setErr('Nama gunung dan tanggal berangkat wajib diisi'); return
+      setErr(t('errNama')); return
     }
     if (form.end_date && form.end_date < form.start_date) {
-      setErr('Tanggal pulang harus setelah tanggal berangkat'); return
+      setErr(t('wpErrTanggal')); return
     }
     setSaving(true)
     const payload = {
@@ -522,7 +523,7 @@ function HikeModal({ hike, uid, onClose, onSaved, showToast }) {
       ;({ error } = await supabase.from('hikes').insert(payload))
     }
     if (error) { setSaving(false); setErr(error.message); return }
-    showToast(hike ? 'Catatan diperbarui' : 'Pendakian dicatat!')
+    showToast(hike ? t('toastUpdated') : t('toastAdded'))
     onClose()
     onSaved()
   }
@@ -531,77 +532,77 @@ function HikeModal({ hike, uid, onClose, onSaved, showToast }) {
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal-box">
         <div className="modal-header">
-          <span className="modal-title">{hike ? 'Edit Pendakian' : '+ Catat Pendakian Baru'}</span>
+          <span className="modal-title">{hike ? t('hikeEditTitle') : t('hikeAddTitle')}</span>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
         <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
           <div className="field">
-            <label>Nama Gunung</label>
+            <label>{t('hikeLabelMountain')}</label>
             <input type="text" placeholder="Semeru, Rinjani, Merbabu…" value={form.mountain} onChange={e => set('mountain', e.target.value)} />
           </div>
 
           <div className="field-row">
             <div className="field">
-              <label>Ketinggian (mdpl)</label>
+              <label>{t('hikeLabelElevation')}</label>
               <input type="number" placeholder="3676" value={form.elevation} onChange={e => set('elevation', e.target.value)} />
             </div>
             <div className="field">
-              <label>Kota / Lokasi</label>
+              <label>{t('hikeLabelCity')}</label>
               <input type="text" placeholder="Lumajang, Malang…" value={form.city} onChange={e => set('city', e.target.value)} />
             </div>
           </div>
 
           <div className="field">
-            <label>Jalur / Basecamp</label>
+            <label>{t('hikeLabelTrail')}</label>
             <input type="text" placeholder="Ranu Pane, Cemoro Sewu, Wekas…" value={form.trail} onChange={e => set('trail', e.target.value)} />
           </div>
 
           <div className="field-row">
             <div className="field">
-              <label>Tanggal Berangkat</label>
+              <label>{t('hikeLabelStartDate')}</label>
               <input type="date" value={form.start_date} onChange={e => set('start_date', e.target.value)} />
             </div>
             <div className="field">
-              <label>Tanggal Pulang</label>
+              <label>{t('hikeLabelEndDate')}</label>
               <input type="date" value={form.end_date} onChange={e => set('end_date', e.target.value)} />
             </div>
           </div>
 
           <div className="field">
-            <label>Status Pendakian</label>
+            <label>{t('hikeLabelStatus')}</label>
             <select value={form.status} onChange={e => set('status', e.target.value)}>
-              <option value="summit">Summit</option>
-              <option value="kawah">Kawah</option>
-              <option value="camp">Camp saja</option>
-              <option value="failed">Tidak berhasil</option>
+              <option value="summit">{t('hikeStatusSummit')}</option>
+              <option value="kawah">{t('hikeStatusKawah')}</option>
+              <option value="camp">{t('hikeStatusCamp')}</option>
+              <option value="failed">{t('hikeStatusFailed')}</option>
             </select>
           </div>
 
           <div className="field">
-            <label>Catatan <span style={{ color: 'var(--muted)', fontWeight: 400, textTransform: 'none' }}>opsional</span></label>
+            <label>{t('notes')} <span style={{ color: 'var(--muted)', fontWeight: 400, textTransform: 'none' }}>{t('optional')}</span></label>
             <textarea rows={2} placeholder="Cuaca, kondisi jalur, kesan…" value={form.notes}
               onChange={e => set('notes', e.target.value)}
               style={{ resize: 'vertical', minHeight: 56 }} />
           </div>
 
           <div className="field">
-            <label>Link Google Photos Album (opsional)</label>
+            <label>{t('hikeLabelPhotos')}</label>
             <input
               type="url"
-              placeholder="https://photos.google.com/album/…"
+              placeholder={t('hikePhotosPlaceholder')}
               value={form.photos_url}
               onChange={e => set('photos_url', e.target.value)}
             />
             <div style={{ fontSize: '0.65rem', color: 'var(--muted)', marginTop: 4 }}>
-              Paste link album Google Photos untuk akses cepat dari kartu gunung
+              {t('hikePhotosHint')}
             </div>
           </div>
 
           {err && <div className="modal-error">{err}</div>}
         </div>
         <div className="modal-footer">
-          <button className="btn-cancel" onClick={onClose}>Batal</button>
-          <button className="btn-save" onClick={save} disabled={saving}>{saving ? 'Menyimpan...' : 'Simpan'}</button>
+          <button className="btn-cancel" onClick={onClose}>{t('cancel')}</button>
+          <button className="btn-save" onClick={save} disabled={saving}>{saving ? t('saving') : t('save')}</button>
         </div>
       </div>
     </div>

@@ -135,11 +135,11 @@ const ACT_CATEGORIES = [
 const catMap = Object.fromEntries(ACT_CATEGORIES.map(c => [c.value, c]))
 
 const TRIP_STATUS = {
-  upcoming:  { label: 'Belum Selesai', color: '#e9a229', bg: 'rgba(233,162,41,0.10)',   bd: 'rgba(233,162,41,0.30)' },
-  ongoing:   { label: 'Berlangsung',   color: '#4a90d9', bg: 'rgba(74,144,217,0.10)',   bd: 'rgba(74,144,217,0.30)' },
-  done:      { label: 'Selesai',       color: '#3dba7e', bg: 'rgba(61,186,126,0.10)',   bd: 'rgba(61,186,126,0.30)' },
-  cancelled: { label: 'Batal',         color: '#e05252', bg: 'rgba(224,82,82,0.10)',    bd: 'rgba(224,82,82,0.30)' },
-  optional:  { label: 'Opsional',      color: '#8b7de8', bg: 'rgba(139,125,232,0.10)', bd: 'rgba(139,125,232,0.30)' },
+  upcoming:  { key: 'itinStatusUpcoming', color: '#e9a229', bg: 'rgba(233,162,41,0.10)',   bd: 'rgba(233,162,41,0.30)' },
+  ongoing:   { key: 'itinStatusOngoing',  color: '#4a90d9', bg: 'rgba(74,144,217,0.10)',   bd: 'rgba(74,144,217,0.30)' },
+  done:      { key: 'itinStatusDone',     color: '#3dba7e', bg: 'rgba(61,186,126,0.10)',   bd: 'rgba(61,186,126,0.30)' },
+  cancelled: { key: 'itinStatusCancelled', color: '#e05252', bg: 'rgba(224,82,82,0.10)',    bd: 'rgba(224,82,82,0.30)' },
+  optional:  { key: 'itinStatusOptional', color: '#8b7de8', bg: 'rgba(139,125,232,0.10)', bd: 'rgba(139,125,232,0.30)' },
 }
 
 const ACT_STATUS = {
@@ -244,7 +244,7 @@ export default function Itinerary({ session, onHome }) {
   const toastKey = useRef(0)
 
   const uid    = session.user.id
-  const { lang, toggle: toggleLang } = useLang()
+  const { lang, t, toggle: toggleLang } = useLang()
   const avatar = session.user.user_metadata?.avatar_url
   const uname  = session.user.user_metadata?.full_name || session.user.email
 
@@ -279,7 +279,7 @@ export default function Itinerary({ session, onHome }) {
   const handleDelete = async (id) => {
     await supabase.from('trips').delete().eq('id', id).eq('user_id', uid)
     setTrips(prev => prev.filter(t => t.id !== id))
-    showToast('Trip dihapus')
+    showToast(t('itinTripDeleted'))
   }
 
   const ongoing   = trips.filter(t => effectiveStatus(t) === 'ongoing')
@@ -343,7 +343,7 @@ export default function Itinerary({ session, onHome }) {
     <div className="app">
       <header className="topbar">
         <div className="topbar-brand" style={{ cursor: 'pointer' }} onClick={onHome}>
-          ✈ <span>Itinerary</span>
+          ✈ <span>{t('itinTitle')}</span>
         </div>
         <div className="topbar-right">
           {onHome && <button className="btn-home" onClick={onHome}>← Home</button>}
@@ -362,10 +362,10 @@ export default function Itinerary({ session, onHome }) {
           {/* Smart Stats Row */}
           <div className="itin-smart-stats">
             {[
-              { eyebrow: 'Trip Selesai',       val: doneTripsList.length || '—',              sub: `${trips.length} total trip`,                             color: 'var(--blue)',   accent: 'var(--blue)'   },
-              { eyebrow: 'Hari Perjalanan',     val: totalDaysTraveled > 0 ? `${totalDaysTraveled}` : '—', sub: 'total hari',                              color: 'var(--green)',  accent: 'var(--green)'  },
-              { eyebrow: 'Total Budget',        val: totalBudget > 0 ? `${(totalBudget/1e6).toFixed(1)}jt` : '—', sub: totalBudget > 0 ? 'estimasi' : 'belum ada', color: 'var(--purple)', accent: 'var(--purple)' },
-              { eyebrow: 'Avg Biaya/Trip',      val: avgCostPerTrip > 0 ? `${(avgCostPerTrip/1e6).toFixed(1)}jt` : '—', sub: 'per orang',                 color: 'var(--amber)',  accent: 'var(--amber)'  },
+              { eyebrow: t('itinStatDone'),    val: doneTripsList.length || '—',              sub: `${trips.length} ${t('itinStatTotalTrips')}`,                  color: 'var(--blue)',   accent: 'var(--blue)'   },
+              { eyebrow: t('itinStatDays'),    val: totalDaysTraveled > 0 ? `${totalDaysTraveled}` : '—', sub: t('itinStatTotalDays'),                            color: 'var(--green)',  accent: 'var(--green)'  },
+              { eyebrow: t('itinStatBudget'),  val: totalBudget > 0 ? `${(totalBudget/1e6).toFixed(1)}jt` : '—', sub: totalBudget > 0 ? t('itinStatEstimate') : t('noData'), color: 'var(--purple)', accent: 'var(--purple)' },
+              { eyebrow: t('itinStatAvg'),     val: avgCostPerTrip > 0 ? `${(avgCostPerTrip/1e6).toFixed(1)}jt` : '—', sub: t('itinStatPerPerson'),             color: 'var(--amber)',  accent: 'var(--amber)'  },
             ].map((c, i) => (
               <div key={i} className="itin-smart-card">
                 <div className="itin-smart-eyebrow">{c.eyebrow}</div>
@@ -394,11 +394,11 @@ export default function Itinerary({ session, onHome }) {
           {/* Action Bar */}
           <div className="itin-action-bar">
             <div className="itin-action-left">
-              <div className="itin-action-title">Perjalananku</div>
+              <div className="itin-action-title">{t('itinMyTrips')}</div>
               <div className="itin-action-sub">{ongoing.length > 0 ? `Sedang berlangsung: ${ongoing[0].destination}` : upcoming.length > 0 ? `${upcoming.length} trip upcoming` : `${doneTripsList.length} destinasi dikunjungi`}</div>
             </div>
             <button className="itin-action-cta" onClick={() => { setEditTrip(null); setShowAdd(true) }}>
-              + Trip Baru
+              {t('itinAddTrip')}
             </button>
           </div>
 
@@ -406,7 +406,7 @@ export default function Itinerary({ session, onHome }) {
             {/* Ongoing */}
             <div className="itin-section itin-section-ongoing">
               <div className="section-header">
-                <div className="section-title" style={{ color: '#4a90d9' }}>Ongoing</div>
+                <div className="section-title" style={{ color: '#4a90d9' }}>{t('itinOngoing')}</div>
               </div>
               {ongoing.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -422,8 +422,8 @@ export default function Itinerary({ session, onHome }) {
               ) : (
                 <div className="itin-empty-ongoing">
                   <div className="itin-empty-ongoing-icon">🚀</div>
-                  <div className="itin-empty-ongoing-title">Belum ada perjalanan aktif</div>
-                  <div className="itin-empty-ongoing-sub">Yuk mulai trip baru!</div>
+                  <div className="itin-empty-ongoing-title">{t('itinEmptyTitle')}</div>
+                  <div className="itin-empty-ongoing-sub">{t('itinEmptySub')}</div>
                 </div>
               )}
             </div>
@@ -431,7 +431,7 @@ export default function Itinerary({ session, onHome }) {
             {/* Upcoming */}
             <div className="itin-section itin-section-upcoming">
               <div className="section-header">
-                <div className="section-title">Upcoming</div>
+                <div className="section-title">{t('itinUpcoming')}</div>
               </div>
               <div className="itin-upcoming-grid">
                 {upcoming.map(trip => (
@@ -458,14 +458,14 @@ export default function Itinerary({ session, onHome }) {
           <div className="itin-section">
             <div className="section-header">
               <div className="section-title">
-                Milestone Perjalanan
+                {t('itinMilestones')}
                 <span style={{ fontSize: '0.65rem', color: 'var(--muted)', fontWeight: 400, marginLeft: 8 }}>
                   {milestones.length} destinasi
                 </span>
               </div>
             </div>
             {milestones.length === 0 ? (
-              <div className="empty-state">Belum ada trip selesai</div>
+              <div className="empty-state">{t('itinNoDone')}</div>
             ) : (
               <div className="itin-milestone-grid">
                 {milestones.map(trip => (
@@ -560,6 +560,7 @@ function CalendarView({ trips, year, onTripClick }) {
 // ─── Trip Cards ──────────────────────────────────────────────────────────────
 
 function TripMilestoneCard({ trip, onView, onEdit, onDelete }) {
+  const { t } = useLang()
   const budget = trip.est_budget_per_person
   const year = trip.end_date ? trip.end_date.slice(0, 4) : null
   const st = TRIP_STATUS[effectiveStatus(trip)] || TRIP_STATUS.done
@@ -573,7 +574,7 @@ function TripMilestoneCard({ trip, onView, onEdit, onDelete }) {
           <div className="itin-milestone-dest">{trip.destination}</div>
           {year && <div className="itin-milestone-year">{year}</div>}
         </div>
-        <span className="itin-status-pill" style={{ flexShrink: 0, background: st.bg, color: st.color, borderColor: st.bd }}>{st.label}</span>
+        <span className="itin-status-pill" style={{ flexShrink: 0, background: st.bg, color: st.color, borderColor: st.bd }}>{t(st.key)}</span>
       </div>
       <div className="itin-milestone-meta">
         <span>{fmtDateShort(trip.start_date)} – {fmtDateShort(trip.end_date)}</span>
@@ -590,7 +591,7 @@ function TripMilestoneCard({ trip, onView, onEdit, onDelete }) {
         </div>
       )}
       <div className="itin-milestone-footer" onClick={e => e.stopPropagation()}>
-        <span className="itin-card-cta" onClick={onView}>Lihat detail →</span>
+        <span className="itin-card-cta" onClick={onView}>{t('itinViewDetail')}</span>
         <div style={{ display: 'flex', gap: 4 }}>
           <button className="btn-icon" onClick={onEdit}>✏</button>
           <button className="btn-icon del" onClick={onDelete}>✕</button>
@@ -601,6 +602,7 @@ function TripMilestoneCard({ trip, onView, onEdit, onDelete }) {
 }
 
 function TripCardUpcoming({ trip, onView, onEdit, onDelete }) {
+  const { t } = useLang()
   const days       = daysUntil(trip.start_date)
   const activities = parseActivities(trip.itinerary)
   const budget     = trip.est_budget_per_person
@@ -612,9 +614,9 @@ function TripCardUpcoming({ trip, onView, onEdit, onDelete }) {
     : null
 
   const daysLabel = days === null ? null
-    : days > 0  ? `${days} hari lagi`
-    : days === 0 ? 'Hari ini!'
-    : `${Math.abs(days)} hari lalu`
+    : days > 0  ? `${days} ${t('itinDaysLeft')}`
+    : days === 0 ? t('itinToday')
+    : `${Math.abs(days)} ${t('itinDaysAgo')}`
 
   const daysColor = days === null ? 'var(--muted)'
     : days <= 3   ? '#e05252'
@@ -627,7 +629,7 @@ function TripCardUpcoming({ trip, onView, onEdit, onDelete }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div className="itin-card-dest">{trip.destination}</div>
           <span className="itin-status-pill" style={{ background: st.bg, color: st.color, borderColor: st.bd }}>
-            {st.label}
+            {t(st.key)}
           </span>
         </div>
         {daysLabel && (
@@ -673,7 +675,7 @@ function TripCardUpcoming({ trip, onView, onEdit, onDelete }) {
       )}
 
       <div className="itin-card-footer" onClick={e => e.stopPropagation()}>
-        <span className="itin-card-cta" onClick={onView}>Lihat detail →</span>
+        <span className="itin-card-cta" onClick={onView}>{t('itinViewDetail')}</span>
         <div style={{ display: 'flex', gap: 4 }}>
           <button className="btn-icon" onClick={onEdit}>✏</button>
           <button className="btn-icon del" onClick={onDelete}>✕</button>
@@ -694,6 +696,7 @@ function sortActs(acts) {
 }
 
 function TripDetailModal({ trip, uid, onClose, onSaved }) {
+  const { t } = useLang()
   const [localActs,   setLocalActs]   = useState(() => sortActs(parseActivities(trip.itinerary)))
   const [localStatus, setLocalStatus] = useState(effectiveStatus(trip))
   const [saving,      setSaving]      = useState(false)
@@ -761,7 +764,7 @@ function TripDetailModal({ trip, uid, onClose, onSaved }) {
 
   const copyShare = () => {
     navigator.clipboard.writeText(buildText())
-      .then(() => alert('Itinerary disalin ke clipboard!'))
+      .then(() => alert(t('itinCopied')))
   }
 
   const waShare = () => {
@@ -776,7 +779,7 @@ function TripDetailModal({ trip, uid, onClose, onSaved }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div className="modal-title" style={{ fontSize: '1.05rem' }}>{trip.destination}</div>
               <span className="itin-status-pill" style={{ background: st.bg, color: st.color, borderColor: st.bd }}>
-                {st.label}
+                {t(st.key)}
               </span>
               {saving && <span style={{ fontSize: '0.62rem', color: 'var(--muted)' }}>menyimpan…</span>}
             </div>
@@ -791,7 +794,7 @@ function TripDetailModal({ trip, uid, onClose, onSaved }) {
               WhatsApp
             </button>
             <button className="btn-add" style={{ fontSize: '0.72rem', padding: '0.25rem 0.65rem', background: 'var(--bg3)', borderColor: 'var(--border2)' }} onClick={copyShare}>
-              Salin
+              {t('itinCopy')}
             </button>
             <button className="modal-close" onClick={onClose}>✕</button>
           </div>
@@ -803,7 +806,7 @@ function TripDetailModal({ trip, uid, onClose, onSaved }) {
           {Object.keys(catBudget).length > 0 && (
             <div className="itin-cat-budget">
               <div style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted)', marginBottom: 6 }}>
-                Budget per Kategori
+                {t('itinBudgetCat')}
               </div>
               {ACT_CATEGORIES.filter(c => catBudget[c.value]).map(c => (
                 <div key={c.value} className="itin-cat-row">
@@ -823,15 +826,15 @@ function TripDetailModal({ trip, uid, onClose, onSaved }) {
               <table>
                 <thead>
                   <tr>
-                    <th>Tanggal</th>
-                    <th>Jam</th>
-                    <th>Aktivitas</th>
-                    <th>Lokasi</th>
+                    <th>{t('itinThDate')}</th>
+                    <th>{t('itinThTime')}</th>
+                    <th>{t('itinThActivity')}</th>
+                    <th>{t('itinThLocation')}</th>
                     <th>Kat</th>
-                    <th className="num">Harga/orang</th>
-                    <th className="num">Total</th>
-                    <th>Status</th>
-                    <th>Catatan</th>
+                    <th className="num">{t('itinThPrice')}</th>
+                    <th className="num">{t('itinThTotal')}</th>
+                    <th>{t('itinThStatus')}</th>
+                    <th>{t('notes')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -865,10 +868,10 @@ function TripDetailModal({ trip, uid, onClose, onSaved }) {
                             style={{ color: s.color }}
                             onChange={e => changeActStatus(i, e.target.value)}
                           >
-                            <option value="upcoming">Upcoming</option>
-                            <option value="done">Selesai</option>
-                            <option value="cancelled">Batal</option>
-                            <option value="optional">Opsional</option>
+                            <option value="upcoming">{t('itinStatusUpcoming')}</option>
+                            <option value="done">{t('itinStatusDone')}</option>
+                            <option value="cancelled">{t('itinStatusCancelled')}</option>
+                            <option value="optional">{t('itinStatusOptional')}</option>
                           </select>
                         </td>
                         <td className="muted" style={{ fontSize: '0.72rem' }}>{a.note || ''}</td>
@@ -889,12 +892,12 @@ function TripDetailModal({ trip, uid, onClose, onSaved }) {
               </table>
             </div>
           ) : (
-            <div className="empty-state" style={{ padding: '2rem 0' }}>Belum ada detail aktivitas</div>
+            <div className="empty-state" style={{ padding: '2rem 0' }}>{t('itinNoActivities')}</div>
           )}
 
           {trip.notes && (
             <div className="itin-notes" style={{ marginTop: '1rem' }}>
-              <div className="itin-notes-label">Catatan</div>
+              <div className="itin-notes-label">{t('notes')}</div>
               <div className="itin-notes-body">{trip.notes}</div>
             </div>
           )}
@@ -962,6 +965,7 @@ const blankActivity = () => ({
 })
 
 function TripModal({ trip, uid, onClose, onSaved, showToast }) {
+  const { t } = useLang()
   const today = new Date().toISOString().split('T')[0]
 
   const initActivities = () => {
@@ -1040,7 +1044,7 @@ function TripModal({ trip, uid, onClose, onSaved, showToast }) {
   }
 
   const save = async () => {
-    if (!form.destination.trim()) { setErr('Destinasi wajib diisi'); return }
+    if (!form.destination.trim()) { setErr(t('itinErrDest')); return }
     setSaving(true)
 
     const itinData = activities
@@ -1083,7 +1087,7 @@ function TripModal({ trip, uid, onClose, onSaved, showToast }) {
     }
 
     if (error) { setSaving(false); setErr(error.message); return }
-    showToast(trip ? 'Trip diperbarui' : 'Trip ditambahkan!')
+    showToast(trip ? t('toastUpdated') : t('toastAdded'))
     onClose()
     onSaved()
   }
@@ -1092,18 +1096,18 @@ function TripModal({ trip, uid, onClose, onSaved, showToast }) {
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal-box" style={{ maxWidth: 760 }}>
         <div className="modal-header">
-          <span className="modal-title">{trip ? 'Edit Trip' : '+ Trip Baru'}</span>
+          <span className="modal-title">{trip ? t('itinEditTitle') : t('itinAddTitle')}</span>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
         <div className="modal-body" style={{ maxHeight: '78vh', overflowY: 'auto' }}>
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', marginBottom: '0.5rem' }}>
             <div className="field" style={{ flex: 1, marginBottom: 0 }}>
-              <label>Destinasi</label>
+              <label>{t('itinLabelDest')}</label>
               <input type="text" placeholder="Bali, Yogyakarta, Tokyo…"
                 value={form.destination} onChange={e => set('destination', e.target.value)} />
             </div>
             <div className="field" style={{ width: 90, flexShrink: 0, marginBottom: 0 }}>
-              <label>Jumlah orang</label>
+              <label>{t('itinLabelPeople')}</label>
               <input
                 type="text" inputMode="numeric" placeholder="1"
                 value={form.people_count ? Number(String(form.people_count).replace(/\./g, '')).toLocaleString('id-ID') : ''}
@@ -1113,11 +1117,11 @@ function TripModal({ trip, uid, onClose, onSaved, showToast }) {
           </div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', marginBottom: '0.75rem' }}>
             <div className="field" style={{ flex: 1, marginBottom: 0 }}>
-              <label>Tanggal Mulai</label>
+              <label>{t('itinLabelStartDate')}</label>
               <input type="date" value={form.start_date} onChange={e => set('start_date', e.target.value)} />
             </div>
             <div className="field" style={{ flex: 1, marginBottom: 0 }}>
-              <label>Tanggal Selesai</label>
+              <label>{t('itinLabelEndDate')}</label>
               <input type="date" value={form.end_date}
                 min={form.start_date || undefined}
                 onChange={e => set('end_date', e.target.value)} />
@@ -1128,7 +1132,7 @@ function TripModal({ trip, uid, onClose, onSaved, showToast }) {
           <div style={{ marginTop: '0.5rem', marginBottom: '0.875rem' }}>
             <div style={{ paddingTop: '0.5rem', borderTop: '1px solid var(--border)', marginBottom: '0.5rem' }}>
               <span style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted)' }}>
-                Aktivitas ({activities.length})
+                {t('itinLabelActivities')} ({activities.length})
               </span>
             </div>
             <div className="itin-act-editor">
@@ -1255,15 +1259,15 @@ function TripModal({ trip, uid, onClose, onSaved, showToast }) {
               )}
             </div>
             <button type="button" className="btn-add" onClick={addAct}
-              style={{ marginTop: 6, width: '100%' }}>+ Tambah Aktivitas</button>
+              style={{ marginTop: 6, width: '100%' }}>{t('itinAddActivity')}</button>
           </div>
 
           {err && <div className="modal-error">{err}</div>}
         </div>
         <div className="modal-footer">
-          <button className="btn-cancel" onClick={onClose}>Batal</button>
+          <button className="btn-cancel" onClick={onClose}>{t('cancel')}</button>
           <button className="btn-save" onClick={save} disabled={saving}>
-            {saving ? 'Menyimpan...' : 'Simpan'}
+            {saving ? t('saving') : t('save')}
           </button>
         </div>
       </div>

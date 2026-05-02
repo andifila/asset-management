@@ -14,10 +14,10 @@ const DEFAULT_COMPONENTS = [
 ]
 
 const LVL = {
-  ok:      { txt: 'OK',        color: '#3dba7e', bg: 'rgba(61,186,126,0.10)',  bd: 'rgba(61,186,126,0.22)'  },
-  due:     { txt: 'Segera',    color: '#e9a229', bg: 'rgba(233,162,41,0.09)', bd: 'rgba(233,162,41,0.22)'  },
-  overdue: { txt: 'Terlambat', color: '#e05252', bg: 'rgba(224,82,82,0.09)',  bd: 'rgba(224,82,82,0.22)'   },
-  nodata:  { txt: 'Cek',       color: '#5a6b8a', bg: 'rgba(255,255,255,0.02)',bd: 'rgba(255,255,255,0.07)' },
+  ok:      { key: 'svcStatusOk',      color: '#3dba7e', bg: 'rgba(61,186,126,0.10)',  bd: 'rgba(61,186,126,0.22)'  },
+  due:     { key: 'svcStatusDue',     color: '#e9a229', bg: 'rgba(233,162,41,0.09)', bd: 'rgba(233,162,41,0.22)'  },
+  overdue: { key: 'svcStatusOverdue', color: '#e05252', bg: 'rgba(224,82,82,0.09)',  bd: 'rgba(224,82,82,0.22)'   },
+  nodata:  { key: 'svcStatusNodata',  color: '#5a6b8a', bg: 'rgba(255,255,255,0.02)',bd: 'rgba(255,255,255,0.07)' },
 }
 
 function getComponents(vehicle) {
@@ -153,7 +153,7 @@ export default function VehicleService({ session, onHome }) {
   const toastKey = useRef(0)
 
   const uid    = session.user.id
-  const { lang, toggle: toggleLang } = useLang()
+  const { lang, t, toggle: toggleLang } = useLang()
   const avatar = session.user.user_metadata?.avatar_url
   const uname  = session.user.user_metadata?.full_name || session.user.email
 
@@ -234,7 +234,7 @@ export default function VehicleService({ session, onHome }) {
     if (!isNaN(km) && km >= 0 && vehicle) {
       setVehicles(prev => prev.map(v => v.id === vehicle.id ? { ...v, km_current: km } : v))
       await supabase.from('vehicles').update({ km_current: km }).eq('id', vehicle.id).eq('user_id', uid)
-      showToast('KM diperbarui')
+      showToast(t('svcKmUpdated'))
     }
     setKmEdit(false)
   }
@@ -242,11 +242,11 @@ export default function VehicleService({ session, onHome }) {
   const handleDeleteRecord = async (id) => {
     await supabase.from('service_records').delete().eq('id', id).eq('user_id', uid)
     setRecords(prev => prev.filter(r => r.id !== id))
-    showToast('Catatan dihapus')
+    showToast(t('svcRecordDeleted'))
   }
 
   const handleDeleteVehicle = async (id) => {
-    if (!window.confirm('Hapus kendaraan ini? Semua riwayat servisnya juga akan dihapus.')) return
+    if (!window.confirm(t('svcConfirmDeleteVehicle'))) return
     await supabase.from('service_records').delete().eq('vehicle_id', id).eq('user_id', uid)
     await supabase.from('vehicles').delete().eq('id', id).eq('user_id', uid)
     setVehicles(prev => {
@@ -255,7 +255,7 @@ export default function VehicleService({ session, onHome }) {
       return next
     })
     setRecords(prev => prev.filter(r => r.vehicle_id !== id))
-    showToast('Kendaraan dihapus')
+    showToast(t('svcVehicleDeleted'))
   }
 
   const typeInfo = VEHICLE_TYPES.find(t => t.value === vehicle?.type) || VEHICLE_TYPES[0]
@@ -264,7 +264,7 @@ export default function VehicleService({ session, onHome }) {
     <div className="app">
       <header className="topbar">
         <div className="topbar-brand" style={{ cursor: 'pointer' }} onClick={onHome}>
-          ⚙ <span>Service Kendaraan</span>
+          ⚙ <span>{t('svcTitle')}</span>
         </div>
         <div className="topbar-right">
           {onHome && <button className="btn-home" onClick={onHome}>← Home</button>}
@@ -302,7 +302,7 @@ export default function VehicleService({ session, onHome }) {
               className="btn-add"
               onClick={() => { setEditVehicle(null); setShowVehicleModal(true) }}
             >
-              + Kendaraan
+              {t('svcAddVehicle')}
             </button>
           </div>
 
@@ -323,7 +323,7 @@ export default function VehicleService({ session, onHome }) {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <div className="svc-km-block">
-                    <div className="svc-km-label">KM Sekarang</div>
+                    <div className="svc-km-label">{t('svcKmNow')}</div>
                     {kmEdit ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <input
@@ -344,7 +344,7 @@ export default function VehicleService({ session, onHome }) {
                       <div
                         className="svc-km-val"
                         onClick={() => { setKmVal(kmNow.toString()); setKmEdit(true) }}
-                        title="Klik untuk update KM"
+                        title={t('svcKmUpdate')}
                       >
                         {kmNow.toLocaleString('id-ID')}
                         <span className="svc-km-unit">km</span>
@@ -353,9 +353,9 @@ export default function VehicleService({ session, onHome }) {
                     )}
                   </div>
                   <div style={{ display: 'flex', gap: 4 }}>
-                    <button className="btn-icon" title="Edit kendaraan" onClick={() => { setEditVehicle(vehicle); setShowVehicleModal(true) }}>✏</button>
+                    <button className="btn-icon" title={t('svcEditVehicle')} onClick={() => { setEditVehicle(vehicle); setShowVehicleModal(true) }}>✏</button>
                     {vehicles.length > 1 && (
-                      <button className="btn-icon del" title="Hapus kendaraan" onClick={() => handleDeleteVehicle(vehicle.id)}>✕</button>
+                      <button className="btn-icon del" title={t('svcDeleteVehicle')} onClick={() => handleDeleteVehicle(vehicle.id)}>✕</button>
                     )}
                   </div>
                 </div>
@@ -366,9 +366,9 @@ export default function VehicleService({ session, onHome }) {
                 <div className="svc-alert-banner svc-alert-overdue">
                   <span className="svc-alert-icon">⚠</span>
                   <div>
-                    <span className="svc-alert-title">Servis Terlambat!</span>
+                    <span className="svc-alert-title">{t('svcAlertOverdue')}</span>
                     <span className="svc-alert-sub">
-                      {overdueComps.map(c => c.label).join(', ')} sudah melewati interval — segera servis.
+                      {overdueComps.map(c => c.label).join(', ')} {t('svcAlertOverdueSub')}
                     </span>
                   </div>
                 </div>
@@ -377,9 +377,9 @@ export default function VehicleService({ session, onHome }) {
                 <div className="svc-alert-banner svc-alert-due">
                   <span className="svc-alert-icon">🔔</span>
                   <div>
-                    <span className="svc-alert-title">Jadwal Servis Mendekat</span>
+                    <span className="svc-alert-title">{t('svcAlertDue')}</span>
                     <span className="svc-alert-sub">
-                      {dueComps.map(c => c.label).join(', ')} sudah mendekati batas interval.
+                      {dueComps.map(c => c.label).join(', ')} {t('svcAlertDueSub')}
                     </span>
                   </div>
                 </div>
@@ -403,24 +403,24 @@ export default function VehicleService({ session, onHome }) {
               {/* Summary Stat Cards */}
               <div className="svc-summary-row">
                 <div className="mod-stat-card">
-                  <div className="mod-stat-label">Total Catatan</div>
+                  <div className="mod-stat-label">{t('svcTotalRecords')}</div>
                   <div className="mod-stat-val">{vehicleRecords.length}</div>
-                  <div className="mod-stat-sub">riwayat servis</div>
+                  <div className="mod-stat-sub">{t('svcHistorySub')}</div>
                 </div>
                 <div className="mod-stat-card">
-                  <div className="mod-stat-label">Total Biaya</div>
+                  <div className="mod-stat-label">{t('svcTotalCost')}</div>
                   <div className="mod-stat-val" style={{ fontSize: vehicleRecords.length ? '1rem' : '1.25rem', color: 'var(--amber)' }}>
                     {totalBiaya ? 'Rp ' + totalBiaya.toLocaleString('id-ID') : '—'}
                   </div>
-                  <div className="mod-stat-sub">semua servis</div>
+                  <div className="mod-stat-sub">{t('svcAllService')}</div>
                 </div>
                 <div className="mod-stat-card">
-                  <div className="mod-stat-label">Servis Terakhir</div>
+                  <div className="mod-stat-label">{t('svcLastService')}</div>
                   <div className="mod-stat-val" style={{ fontSize: '0.92rem', color: 'var(--blue)' }}>
                     {lastServiceRec ? fmtDate(lastServiceRec.service_date) : '—'}
                   </div>
                   <div className="mod-stat-sub">
-                    {lastServiceRec ? fmtKm(lastServiceRec.km_at_service) : 'belum ada data'}
+                    {lastServiceRec ? fmtKm(lastServiceRec.km_at_service) : t('svcNoDataSub')}
                   </div>
                 </div>
               </div>
@@ -434,7 +434,7 @@ export default function VehicleService({ session, onHome }) {
                     <div key={comp.id} className={`svc-status-card${expandedComp === comp.id ? ' svc-status-card-active' : ''}`} style={{ background: lv.bg, borderColor: lv.bd, cursor: 'pointer' }} onClick={() => setExpandedComp(prev => prev === comp.id ? null : comp.id)}>
                       <div className="svc-status-top">
                         <span className="svc-status-icon" style={{ color: comp.color }}>{comp.icon}</span>
-                        <span className="svc-status-badge" style={{ color: lv.color }}>{lv.txt}</span>
+                        <span className="svc-status-badge" style={{ color: lv.color }}>{t(lv.key)}</span>
                       </div>
                       <div className="svc-status-name">{comp.label}</div>
                       {s.last ? (
@@ -458,12 +458,12 @@ export default function VehicleService({ session, onHome }) {
                           )}
                         </>
                       ) : (
-                        <div className="svc-status-meta"><span>Tidak ada data</span></div>
+                        <div className="svc-status-meta"><span>{t('svcNoDataComp')}</span></div>
                       )}
                       <div style={{ fontSize: '0.6rem', color: 'var(--muted)', marginTop: 5, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 4 }}>
-                        Interval {comp.kmInt ? `${comp.kmInt.toLocaleString('id-ID')} km` : ''}
+                        {t('svcInterval')} {comp.kmInt ? `${comp.kmInt.toLocaleString('id-ID')} km` : ''}
                         {comp.kmInt && comp.dayInt ? ' / ' : ''}
-                        {comp.dayInt ? `${comp.dayInt} hari` : ''}
+                        {comp.dayInt ? `${comp.dayInt} ${t('svcDays')}` : ''}
                       </div>
                     </div>
                   )
@@ -472,16 +472,16 @@ export default function VehicleService({ session, onHome }) {
 
               {/* Service History */}
               <div className="section-header">
-                <div className="section-title">Riwayat Servis</div>
+                <div className="section-title">{t('svcSectionHistory')}</div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <input
                     type="text"
-                    placeholder="Cari servis, bengkel…"
+                    placeholder={t('svcSearchPlaceholder')}
                     value={svcSearch}
                     onChange={e => { setSvcSearch(e.target.value); setSvcPage(1) }}
                     style={{ fontSize: '0.75rem', padding: '0.28rem 0.6rem', borderRadius: 6, border: '1px solid var(--border2)', background: 'var(--bg2)', color: 'var(--text)', width: 170, outline: 'none' }}
                   />
-                  <button className="btn-add" onClick={() => { setEditRec(null); setShowAdd(true) }}>+ Catat Servis</button>
+                  <button className="btn-add" onClick={() => { setEditRec(null); setShowAdd(true) }}>{t('svcAddRecord')}</button>
                 </div>
               </div>
 
@@ -489,17 +489,17 @@ export default function VehicleService({ session, onHome }) {
                 <table>
                   <thead>
                     <tr>
-                      <th>Tanggal</th>
-                      <th>KM</th>
-                      <th>Servis</th>
-                      <th>Bengkel</th>
-                      <th className="num">Biaya</th>
+                      <th>{t('svcThDate')}</th>
+                      <th>{t('svcThKm')}</th>
+                      <th>{t('svcThService')}</th>
+                      <th>{t('svcThShop')}</th>
+                      <th className="num">{t('svcThCost')}</th>
                       <th className="actions" />
                     </tr>
                   </thead>
                   <tbody>
                     {filteredRecords.length === 0 ? (
-                      <tr><td colSpan={6} className="empty-state">{svcSearch ? 'Tidak ada hasil pencarian' : 'Belum ada catatan servis'}</td></tr>
+                      <tr><td colSpan={6} className="empty-state">{svcSearch ? t('svcNoResults') : t('svcNoRecords')}</td></tr>
                     ) : pagedRecords.map(r => (
                       <tr key={r.id}>
                         <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.service_date)}</td>
@@ -520,7 +520,7 @@ export default function VehicleService({ session, onHome }) {
                     <tfoot>
                       <tr>
                         <td colSpan={4} className="muted" style={{ fontSize: '0.72rem' }}>
-                          {filteredRecords.length} catatan{svcSearch ? ` (dari ${vehicleRecords.length})` : ''} · total
+                          {filteredRecords.length} {t('svcFooterRecords')}{svcSearch ? ` (${t('svcFooterFrom')} ${vehicleRecords.length})` : ''} · {t('svcFooterTotal')}
                         </td>
                         <td className="num" style={{ fontFamily: "'DM Mono', monospace", fontSize: '0.78rem', color: 'var(--text)' }}>
                           {fmtRp(filteredRecords.reduce((s, r) => s + (r.cost || 0), 0))}
@@ -536,7 +536,7 @@ export default function VehicleService({ session, onHome }) {
               {/* Service Timeline */}
               {vehicleRecords.length > 0 && (
                 <div className="svc-timeline-section">
-                  <div className="svc-timeline-title">Riwayat Singkat</div>
+                  <div className="svc-timeline-title">{t('svcTimelineTitle')}</div>
                   <div className="svc-tl">
                     {vehicleRecords.slice(0, 4).map((r, i) => (
                       <div key={r.id} className="svc-tl-item">
@@ -560,7 +560,7 @@ export default function VehicleService({ session, onHome }) {
 
           {vehicles.length === 0 && !loading && (
             <div className="empty-state" style={{ padding: '3rem' }}>
-              Belum ada kendaraan. Klik "+ Kendaraan" untuk menambahkan.
+              {t('svcNoVehicles')}
             </div>
           )}
         </main>
@@ -602,6 +602,7 @@ export default function VehicleService({ session, onHome }) {
 }
 
 function CompHistoryModal({ comp, recs, onClose }) {
+  const { t } = useLang()
   const [search, setSearch] = useState('')
   const [page,   setPage]   = useState(1)
   const PAGE = 10
@@ -621,13 +622,13 @@ function CompHistoryModal({ comp, recs, onClose }) {
         <div className="modal-header">
           <span className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
             <span style={{ color: comp.color }}>{comp.icon}</span>
-            History {comp.label}
+            {t('svcHistoryTitle')} {comp.label}
           </span>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {recs.length > 0 && (
               <input
                 type="text"
-                placeholder="Cari…"
+                placeholder={t('svcSearchShort')}
                 value={search}
                 onChange={e => { setSearch(e.target.value); setPage(1) }}
                 style={{ fontSize: '0.75rem', padding: '0.26rem 0.55rem', borderRadius: 6, border: '1px solid var(--border2)', background: 'var(--bg2)', color: 'var(--text)', width: 130, outline: 'none' }}
@@ -638,23 +639,23 @@ function CompHistoryModal({ comp, recs, onClose }) {
         </div>
         <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
           {recs.length === 0 ? (
-            <div className="empty-state" style={{ padding: '2rem 0' }}>Belum ada history {comp.label}</div>
+            <div className="empty-state" style={{ padding: '2rem 0' }}>{t('svcNoHistory')} {comp.label}</div>
           ) : (
             <>
               <div className="table-wrap" style={{ marginBottom: 0 }}>
                 <table>
                   <thead>
                     <tr>
-                      <th>Tanggal</th>
-                      <th>KM</th>
-                      <th>Item</th>
-                      <th>Bengkel</th>
-                      <th className="num">Biaya</th>
+                      <th>{t('svcThDate')}</th>
+                      <th>{t('svcThKm')}</th>
+                      <th>{t('svcThService')}</th>
+                      <th>{t('svcThShop')}</th>
+                      <th className="num">{t('svcThCost')}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filtered.length === 0 ? (
-                      <tr><td colSpan={5} className="empty-state">Tidak ada hasil</td></tr>
+                      <tr><td colSpan={5} className="empty-state">{t('svcNoResults2')}</td></tr>
                     ) : paged.map(r => (
                       <tr key={r.id}>
                         <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.service_date)}</td>
@@ -669,7 +670,7 @@ function CompHistoryModal({ comp, recs, onClose }) {
                     <tfoot>
                       <tr>
                         <td colSpan={4} className="muted" style={{ fontSize: '0.72rem' }}>
-                          {filtered.length} catatan{search ? ` (dari ${recs.length})` : ''}
+                          {filtered.length} {t('svcFooterRecords')}{search ? ` (${t('svcFooterFrom')} ${recs.length})` : ''}
                         </td>
                         <td className="num" style={{ fontFamily: "'DM Mono', monospace", fontSize: '0.78rem', color: 'var(--text)' }}>
                           {fmtRp(filtered.reduce((s, r) => s + (r.cost || 0), 0))}
@@ -689,6 +690,7 @@ function CompHistoryModal({ comp, recs, onClose }) {
 }
 
 function VehicleModal({ vehicle, uid, onClose, onSaved, showToast }) {
+  const { t } = useLang()
   const [form, setForm] = useState({
     name:       vehicle?.name        || '',
     type:       vehicle?.type        || 'motor',
@@ -713,7 +715,7 @@ function VehicleModal({ vehicle, uid, onClose, onSaved, showToast }) {
 
   const save = async () => {
     if (!form.name.trim() || !form.plate.trim()) {
-      setErr('Nama dan plat nomor wajib diisi'); return
+      setErr(t('svcErrNamePlate')); return
     }
     setSaving(true)
 
@@ -742,7 +744,7 @@ function VehicleModal({ vehicle, uid, onClose, onSaved, showToast }) {
       ;({ error } = await supabase.from('vehicles').insert(payload))
     }
     if (error) { setSaving(false); setErr(error.message); return }
-    showToast(vehicle ? 'Kendaraan diperbarui' : 'Kendaraan ditambahkan!')
+    showToast(vehicle ? t('svcVehicleUpdated') : t('svcVehicleAdded'))
     onClose()
     onSaved()
   }
@@ -751,35 +753,35 @@ function VehicleModal({ vehicle, uid, onClose, onSaved, showToast }) {
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal-box" style={{ maxWidth: 520 }}>
         <div className="modal-header">
-          <span className="modal-title">{vehicle ? 'Edit Kendaraan' : '+ Tambah Kendaraan'}</span>
+          <span className="modal-title">{vehicle ? t('svcEditVehicleTitle') : t('svcAddVehicleTitle')}</span>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
         <div className="modal-body" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
           <div className="field">
-            <label>Nama Kendaraan</label>
+            <label>{t('svcLabelName')}</label>
             <input type="text" placeholder="Honda Vario 125, Avanza…" value={form.name} onChange={e => set('name', e.target.value)} />
           </div>
 
           <div className="field-row">
             <div className="field">
-              <label>Jenis</label>
+              <label>{t('svcLabelType')}</label>
               <select value={form.type} onChange={e => set('type', e.target.value)}>
-                {VEHICLE_TYPES.map(t => <option key={t.value} value={t.value}>{t.icon} {t.label}</option>)}
+                {VEHICLE_TYPES.map(vt => <option key={vt.value} value={vt.value}>{vt.icon} {vt.label}</option>)}
               </select>
             </div>
             <div className="field">
-              <label>Plat Nomor</label>
+              <label>{t('svcLabelPlate')}</label>
               <input type="text" placeholder="B 1234 ABC" value={form.plate} onChange={e => set('plate', e.target.value)} />
             </div>
           </div>
 
           <div className="field-row">
             <div className="field">
-              <label>Tahun</label>
+              <label>{t('svcLabelYear')}</label>
               <input type="number" placeholder="2020" value={form.year} onChange={e => set('year', e.target.value)} />
             </div>
             <div className="field">
-              <label>KM Sekarang</label>
+              <label>{t('svcKmNow')}</label>
               <input
                 type="text" inputMode="numeric" placeholder="0"
                 value={form.km_current ? Number(String(form.km_current).replace(/\./g, '')).toLocaleString('id-ID') : ''}
@@ -791,7 +793,7 @@ function VehicleModal({ vehicle, uid, onClose, onSaved, showToast }) {
           {/* Parts Config */}
           <div style={{ marginTop: '0.5rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border)' }}>
             <div style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted)', marginBottom: '0.75rem' }}>
-              Interval Ganti Sparepart
+              {t('svcPartsTitle')}
             </div>
             {partsConfig.map((p, i) => (
               <div key={p.id} className="svc-parts-row">
@@ -823,8 +825,8 @@ function VehicleModal({ vehicle, uid, onClose, onSaved, showToast }) {
           {err && <div className="modal-error">{err}</div>}
         </div>
         <div className="modal-footer">
-          <button className="btn-cancel" onClick={onClose}>Batal</button>
-          <button className="btn-save" onClick={save} disabled={saving}>{saving ? 'Menyimpan...' : 'Simpan'}</button>
+          <button className="btn-cancel" onClick={onClose}>{t('cancel')}</button>
+          <button className="btn-save" onClick={save} disabled={saving}>{saving ? t('saving') : t('save')}</button>
         </div>
       </div>
     </div>
@@ -832,6 +834,7 @@ function VehicleModal({ vehicle, uid, onClose, onSaved, showToast }) {
 }
 
 function ServiceModal({ record, vehicle, uid, onClose, onSaved, showToast }) {
+  const { t } = useLang()
   const today = new Date().toISOString().split('T')[0]
   const [date,  setDate]  = useState(record?.service_date || today)
   const [km,    setKm]    = useState(record?.km_at_service?.toString() || '')
@@ -850,9 +853,9 @@ function ServiceModal({ record, vehicle, uid, onClose, onSaved, showToast }) {
   const total = items.reduce((s, it) => s + parseRaw(it.biaya), 0)
 
   const save = async () => {
-    if (!date) { setErr('Tanggal wajib diisi'); return }
+    if (!date) { setErr(t('svcErrDate')); return }
     const valid = items.filter(it => it.nama.trim())
-    if (!valid.length) { setErr('Minimal satu item servis harus diisi'); return }
+    if (!valid.length) { setErr(t('svcErrMinItem')); return }
     setSaving(true)
     const payload = {
       user_id:       uid,
@@ -877,7 +880,7 @@ function ServiceModal({ record, vehicle, uid, onClose, onSaved, showToast }) {
       await supabase.from('vehicles').update({ km_current: payload.km_at_service }).eq('id', vehicle.id).eq('user_id', uid)
     }
 
-    showToast(record ? 'Catatan diperbarui' : 'Servis dicatat!')
+    showToast(record ? t('svcRecordUpdated') : t('svcServiceRecorded'))
     onClose()
     onSaved()
   }
@@ -886,17 +889,17 @@ function ServiceModal({ record, vehicle, uid, onClose, onSaved, showToast }) {
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal-box">
         <div className="modal-header">
-          <span className="modal-title">{record ? 'Edit Catatan Servis' : `+ Catat Servis — ${vehicle?.name || ''}`}</span>
+          <span className="modal-title">{record ? t('svcEditRecordTitle') : `${t('svcAddRecordFor')} ${vehicle?.name || ''}`}</span>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
         <div className="modal-body" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
           <div className="field-row">
             <div className="field">
-              <label>Tanggal Servis</label>
+              <label>{t('svcLabelDate')}</label>
               <input type="date" value={date} onChange={e => setDate(e.target.value)} />
             </div>
             <div className="field">
-              <label>KM Saat Servis</label>
+              <label>{t('svcLabelKmAtService')}</label>
               <input
                 type="text" inputMode="numeric"
                 placeholder="mis. 21.350"
@@ -907,14 +910,14 @@ function ServiceModal({ record, vehicle, uid, onClose, onSaved, showToast }) {
           </div>
 
           <div className="field">
-            <label>Bengkel</label>
+            <label>{t('svcLabelShop')}</label>
             <input type="text" placeholder="Ahass, bengkel umum, dll." value={shop} onChange={e => setShop(e.target.value)} />
           </div>
 
           <div className="svc-items-section">
             <div className="svc-items-header">
-              <span className="svc-items-title">Item Servis</span>
-              <button type="button" className="btn-add" style={{ padding: '0.18rem 0.55rem', fontSize: '0.72rem' }} onClick={() => addItem()}>+ Item</button>
+              <span className="svc-items-title">{t('svcLabelItems')}</span>
+              <button type="button" className="btn-add" style={{ padding: '0.18rem 0.55rem', fontSize: '0.72rem' }} onClick={() => addItem()}>{t('svcAddItem')}</button>
             </div>
             <div className="svc-quick-types" style={{ marginBottom: '0.55rem' }}>
               {DEFAULT_COMPONENTS.map(c => (
@@ -933,14 +936,14 @@ function ServiceModal({ record, vehicle, uid, onClose, onSaved, showToast }) {
                 <input
                   type="text"
                   className="svc-item-nama"
-                  placeholder="Nama produk / jenis servis"
+                  placeholder={t('svcItemName')}
                   value={it.nama}
                   onChange={e => setItem(i, 'nama', e.target.value)}
                 />
                 <input
                   type="text" inputMode="numeric"
                   className="svc-item-biaya"
-                  placeholder="Biaya"
+                  placeholder={t('svcItemCost')}
                   value={it.biaya ? Number(String(it.biaya).replace(/\./g, '')).toLocaleString('id-ID') : ''}
                   onChange={e => setItem(i, 'biaya', e.target.value.replace(/\./g, '').replace(/\D/g, ''))}
                 />
@@ -950,7 +953,7 @@ function ServiceModal({ record, vehicle, uid, onClose, onSaved, showToast }) {
               </div>
             ))}
             <div className="svc-item-total">
-              <span>Total</span>
+              <span>{t('svcFooterTotal')}</span>
               <span className="svc-item-total-val">{fmtRp(total)}</span>
             </div>
           </div>
@@ -958,9 +961,9 @@ function ServiceModal({ record, vehicle, uid, onClose, onSaved, showToast }) {
           {err && <div className="modal-error">{err}</div>}
         </div>
         <div className="modal-footer">
-          <button className="btn-cancel" onClick={onClose}>Batal</button>
+          <button className="btn-cancel" onClick={onClose}>{t('cancel')}</button>
           <button className="btn-save" onClick={save} disabled={saving}>
-            {saving ? 'Menyimpan...' : 'Simpan'}
+            {saving ? t('saving') : t('save')}
           </button>
         </div>
       </div>
