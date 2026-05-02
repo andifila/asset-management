@@ -402,9 +402,9 @@ export default function Itinerary({ session, onHome }) {
             </button>
           </div>
 
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+          <div className="itin-trip-layout">
             {/* Ongoing */}
-            <div className="itin-section" style={{ flex: '0 0 300px', minWidth: 0 }}>
+            <div className="itin-section itin-section-ongoing">
               <div className="section-header">
                 <div className="section-title" style={{ color: '#4a90d9' }}>Ongoing</div>
               </div>
@@ -429,7 +429,7 @@ export default function Itinerary({ session, onHome }) {
             </div>
 
             {/* Upcoming */}
-            <div className="itin-section" style={{ flex: 1, minWidth: 0 }}>
+            <div className="itin-section itin-section-upcoming">
               <div className="section-header">
                 <div className="section-title">Upcoming</div>
               </div>

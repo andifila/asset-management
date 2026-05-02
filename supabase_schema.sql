@@ -180,3 +180,73 @@ ALTER TABLE vehicles        ADD COLUMN IF NOT EXISTS parts_config JSONB;
 ALTER TABLE service_records ADD COLUMN IF NOT EXISTS product_used TEXT;
 ALTER TABLE hikes            ADD COLUMN IF NOT EXISTS city         TEXT;
 ALTER TABLE hikes            ADD COLUMN IF NOT EXISTS photos_url   TEXT;
+
+-- =============================================
+-- WEDDING PLANNER TABLES
+-- =============================================
+
+CREATE TABLE IF NOT EXISTS wedding_budget_items (
+  id         UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id    UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  category   TEXT NOT NULL,
+  vendor     TEXT NOT NULL,
+  budget_max NUMERIC(18,2) NOT NULL DEFAULT 0,
+  estimate   NUMERIC(18,2),
+  notes      TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS wedding_transactions (
+  id             UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id        UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  budget_item_id UUID REFERENCES wedding_budget_items(id) ON DELETE CASCADE NOT NULL,
+  category       TEXT NOT NULL DEFAULT '',
+  amount         NUMERIC(18,2) NOT NULL DEFAULT 0,
+  type           TEXT NOT NULL DEFAULT 'DP',
+  date           DATE NOT NULL,
+  note           TEXT,
+  created_at     TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE wedding_budget_items  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE wedding_transactions  ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "own" ON wedding_budget_items;
+DROP POLICY IF EXISTS "own" ON wedding_transactions;
+
+CREATE POLICY "own" ON wedding_budget_items  FOR ALL USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);
+CREATE POLICY "own" ON wedding_transactions  FOR ALL USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);
+
+-- =============================================
+-- WEDDING PLANNER v2 — Vendor & Settings
+-- =============================================
+
+-- Vendor master list
+CREATE TABLE IF NOT EXISTS wedding_vendors (
+  id             UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id        UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  name           TEXT NOT NULL,
+  category       TEXT NOT NULL,
+  price_estimate NUMERIC(18,2),
+  created_at     TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE wedding_vendors ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own" ON wedding_vendors;
+CREATE POLICY "own" ON wedding_vendors FOR ALL USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);
+
+-- Global wedding settings (total budget)
+CREATE TABLE IF NOT EXISTS wedding_settings (
+  id           UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id      UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL UNIQUE,
+  total_budget NUMERIC(18,2) DEFAULT 0,
+  updated_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE wedding_settings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "own" ON wedding_settings;
+CREATE POLICY "own" ON wedding_settings FOR ALL USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);
+
+-- Add vendor_id column to budget items (run once)
+ALTER TABLE wedding_budget_items ADD COLUMN IF NOT EXISTS vendor_id UUID REFERENCES wedding_vendors(id) ON DELETE SET NULL;

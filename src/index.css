@@ -296,6 +296,9 @@ tfoot td { border-top: 1px solid var(--border2); background: var(--bg3); }
 .actions { white-space: nowrap; text-align: right; width: 1%; }
 .actions .row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 4px; opacity: 0; transition: opacity 0.15s; }
 tbody tr:hover .actions .row-actions { opacity: 1; }
+@media (hover: none) {
+  .actions .row-actions { opacity: 1; }
+}
 .btn-icon {
   display: flex; align-items: center; justify-content: center;
   width: 26px; height: 26px;
@@ -948,6 +951,10 @@ th.sortable.sorted .sort-icon { opacity: 1; color: var(--blue); }
 
 .itin-section { margin-bottom: 1.75rem; }
 
+.itin-trip-layout { display: flex; gap: 1rem; align-items: flex-start; }
+.itin-section-ongoing { flex: 0 0 300px; min-width: 0; }
+.itin-section-upcoming { flex: 1; min-width: 0; }
+
 .itin-upcoming-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
 
 .itin-card-upcoming {
@@ -1296,6 +1303,10 @@ th.sortable.sorted .sort-icon { opacity: 1; color: var(--blue); }
 .itin-card-footer .btn-icon { opacity: 0; transition: opacity 0.15s; }
 .itin-milestone-card:hover .btn-icon,
 .itin-card-upcoming:hover .btn-icon { opacity: 1; }
+@media (hover: none) {
+  .itin-milestone-footer .btn-icon,
+  .itin-card-footer .btn-icon { opacity: 1; }
+}
 
 /* Empty ongoing placeholder */
 .itin-empty-ongoing {
@@ -2038,7 +2049,7 @@ th.sortable.sorted .sort-icon { opacity: 1; color: var(--blue); }
 
 /* Mobile (≤640px) — iPhone 15 Pro = 393px */
 @media (max-width: 640px) {
-  html { font-size: 13px; }
+  html { font-size: 14px; }
 
   /* Topbar — safe area + compact */
   .topbar {
@@ -2052,6 +2063,8 @@ th.sortable.sorted .sort-icon { opacity: 1; color: var(--blue); }
 
   /* Also adjust tabnav when topbar shrinks on mobile */
   .tabnav { top: 52px; overflow-x: auto; }
+  .tabnav-close { width: 28px; height: 28px; }
+  .tabnav-menu-btn { width: 28px; height: 28px; }
 
   /* Main content */
   .main-content { padding: 1rem 0.875rem; }
@@ -2105,6 +2118,9 @@ th.sortable.sorted .sort-icon { opacity: 1; color: var(--blue); }
 
   /* Itinerary */
   .itin-stats { grid-template-columns: repeat(3, 1fr); }
+  .itin-trip-layout { flex-direction: column; }
+  .itin-section-ongoing { flex: none; width: 100%; }
+  .itin-section-upcoming { flex: none; width: 100%; }
   .itin-upcoming-grid { grid-template-columns: 1fr; }
   .itin-milestone-grid { grid-template-columns: 1fr 1fr; }
   .itin-insight-grid { grid-template-columns: 1fr; }
@@ -2127,12 +2143,16 @@ th.sortable.sorted .sort-icon { opacity: 1; color: var(--blue); }
 
   /* Table horizontal scroll already handled by .table-wrap */
   th, td { padding: 0.5rem 0.625rem; }
+
+  /* Bigger touch targets for icon buttons */
+  .btn-icon { width: 36px; height: 36px; font-size: 0.85rem; }
+  .actions .row-actions { gap: 6px; }
 }
 
 @media (max-width: 420px) {
   .itin-milestone-grid { grid-template-columns: 1fr; }
   .hike-reco-grid { grid-template-columns: 1fr; }
-  .svc-status-grid { grid-template-columns: repeat(2, 1fr); }
+  .svc-status-grid { grid-template-columns: 1fr; }
 }
 
 /* =================================================================
@@ -2517,7 +2537,46 @@ th.sortable.sorted .sort-icon { opacity: 1; color: var(--blue); }
   .wp-hero-right { width: 100%; }
   .wp-stat-card { flex: 1; min-width: 130px; }
 }
+.wp-bulk-row-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; }
+
 @media (max-width: 600px) {
   .wp-hero-card { padding: 1.125rem 1rem; }
   .wp-detail-stats { grid-template-columns: 1fr 1fr; }
+  .wp-bulk-row-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Vendor Picker ───────────────────────────────────────────────── */
+.vendor-card {
+  padding: 0.6rem 0.85rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  cursor: pointer;
+  transition: border-color 0.14s, background 0.14s;
+  user-select: none;
+}
+.vendor-card:hover {
+  border-color: rgba(139,125,232,0.35);
+  background: rgba(139,125,232,0.06);
+}
+.vendor-card.active {
+  border-color: var(--purple);
+  background: rgba(139,125,232,0.12);
+}
+.vp-add-btn {
+  width: 100%;
+  background: rgba(255,255,255,0.02);
+  border: 1px dashed rgba(255,255,255,0.12);
+  color: var(--muted);
+  border-radius: 8px;
+  padding: 0.45rem;
+  font-size: 0.78rem;
+  font-family: 'Sora', sans-serif;
+  cursor: pointer;
+  transition: border-color 0.14s, color 0.14s;
+  margin-top: 0.25rem;
+}
+.vp-add-btn:hover {
+  border-color: rgba(139,125,232,0.3);
+  color: var(--text);
 }

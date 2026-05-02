@@ -7,7 +7,7 @@ import ConfirmModal from './ConfirmModal'
 import { useLang } from '../lib/LangContext'
 import Pagination, { paginate } from './Pagination'
 
-const EMPTY = { symbol: '', catatan: '' }
+const EMPTY = { symbol: '' }
 const AUTO_REFRESH_MS = 5 * 60 * 1000 // 5 menit
 
 export default function BinanceTable({ data, uid, onRefresh, showToast }) {
@@ -146,7 +146,7 @@ export default function BinanceTable({ data, uid, onRefresh, showToast }) {
   }
 
   const openEdit = (r) => {
-    setForm({ symbol: r.symbol, catatan: r.catatan || '' })
+    setForm({ symbol: r.symbol })
     setEditId(r.id); setSaveErr(null)
     if (usdtRate) {
       setSaldoUsdt((Number(r.saldo)  / usdtRate).toFixed(4))
@@ -172,7 +172,6 @@ export default function BinanceTable({ data, uid, onRefresh, showToast }) {
       symbol:  form.symbol.trim().toUpperCase(),
       saldo:   saldoIdr,
       aktual:  aktualIdr,
-      catatan: form.catatan,
       user_id: uid,
     }
     const { error } = editId
@@ -249,10 +248,6 @@ export default function BinanceTable({ data, uid, onRefresh, showToast }) {
             </div>
           </div>
 
-          <div className="field">
-            <label>{t('notes')}</label>
-            <input value={form.catatan || ''} onChange={e => set('catatan', e.target.value)} placeholder={t('optional')} />
-          </div>
         </Modal>
       )}
 

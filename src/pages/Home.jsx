@@ -135,7 +135,7 @@ const CheckIcon = () => (
 )
 
 export default function Home({ session, onModule }) {
-  const { lang } = useLang()
+  const { lang, toggle: toggleLang } = useLang()
   const [assetTotal,  setAssetTotal]  = useState(null)
   const [showAssets,  setShowAssets]  = useState(() => localStorage.getItem('showAssets') !== 'false')
   const [lastService, setLastService] = useState(null)
@@ -287,6 +287,11 @@ export default function Home({ session, onModule }) {
             <img src={avatar} className="avatar" alt="avatar" referrerPolicy="no-referrer" />
           )}
           <span className="topbar-name">{name}</span>
+          <button className="btn-lang" onClick={toggleLang}>
+            <span className={lang === 'id' ? 'lang-active' : ''}>ID</span>
+            <span className="lang-sep">·</span>
+            <span className={lang === 'en' ? 'lang-active' : ''}>EN</span>
+          </button>
           <button className="btn-logout" onClick={logout}>Keluar</button>
         </div>
       </header>

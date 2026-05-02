@@ -150,8 +150,9 @@ const SEVEN_SUMMITS_ORDER = [
 ]
 
 function SevenSummitTracker({ hikes }) {
-  const hikedKeys = new Set(hikes.map(h => (h.mountain || '').toLowerCase().trim()))
-  const count = SEVEN_SUMMITS_ORDER.filter(s => hikedKeys.has(s.key)).length
+  const hikedNames = hikes.map(h => (h.mountain || '').toLowerCase().trim())
+  const matchesSj  = key => hikedNames.some(n => n === key || n.includes(key))
+  const count = SEVEN_SUMMITS_ORDER.filter(s => matchesSj(s.key)).length
 
   return (
     <div className="hike-7sj-wrap">
@@ -161,7 +162,7 @@ function SevenSummitTracker({ hikes }) {
       </div>
       <div className="hike-7sj-nodes">
         {SEVEN_SUMMITS_ORDER.map((s, i) => {
-          const done = hikedKeys.has(s.key)
+          const done = matchesSj(s.key)
           return (
             <div key={s.key} style={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, flex: '0 0 auto' }}>
@@ -239,7 +240,8 @@ export default function MountainHiking({ session, onHome }) {
   // Derived stats
   const maxElevation  = hikes.length ? Math.max(0, ...hikes.filter(h => h.elevation).map(h => h.elevation)) : 0
   const citiesVisited = [...new Set(hikes.filter(h => h.city).map(h => h.city))].length
-  const sevenSJCount  = hikes.filter(h => SEVEN_SUMMIT_JAVA[(h.mountain||'').toLowerCase().trim()] !== undefined).length
+  const matchesSjKey  = (mountain, key) => { const n = (mountain || '').toLowerCase().trim(); return n === key || n.includes(key) }
+  const sevenSJCount  = SEVEN_SUMMITS_ORDER.filter(s => hikes.some(h => matchesSjKey(h.mountain, s.key))).length
 
   // Achievement system
   const achievements = [
@@ -483,11 +485,11 @@ function HikeModal({ hike, uid, onClose, onSaved, showToast }) {
     elevation:  hike?.elevation?.toString() || '',
     city:       hike?.city                  || '',
     trail:      parsed.trail,
+    notes:      parsed.notes,
     start_date: hike?.start_date            || today,
     end_date:   hike?.end_date              || today,
     status:     hike?.status                || 'summit',
     photos_url: hike?.photos_url            || '',
-    notes:      parsed.notes,
   })
   const [saving, setSaving] = useState(false)
   const [err,    setErr]    = useState('')
@@ -576,6 +578,13 @@ function HikeModal({ hike, uid, onClose, onSaved, showToast }) {
           </div>
 
           <div className="field">
+            <label>Catatan <span style={{ color: 'var(--muted)', fontWeight: 400, textTransform: 'none' }}>opsional</span></label>
+            <textarea rows={2} placeholder="Cuaca, kondisi jalur, kesan…" value={form.notes}
+              onChange={e => set('notes', e.target.value)}
+              style={{ resize: 'vertical', minHeight: 56 }} />
+          </div>
+
+          <div className="field">
             <label>Link Google Photos Album (opsional)</label>
             <input
               type="url"
@@ -586,11 +595,6 @@ function HikeModal({ hike, uid, onClose, onSaved, showToast }) {
             <div style={{ fontSize: '0.65rem', color: 'var(--muted)', marginTop: 4 }}>
               Paste link album Google Photos untuk akses cepat dari kartu gunung
             </div>
-          </div>
-
-          <div className="field">
-            <label>Catatan (opsional)</label>
-            <input type="text" placeholder="Kondisi jalur, cerita singkat, dll." value={form.notes} onChange={e => set('notes', e.target.value)} />
           </div>
 
           {err && <div className="modal-error">{err}</div>}

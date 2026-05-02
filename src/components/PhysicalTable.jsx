@@ -8,7 +8,7 @@ import NumInput from './NumInput'
 import { useLang } from '../lib/LangContext'
 import Pagination, { paginate } from './Pagination'
 
-const EMPTY = { asset_name: '', buy_price: '', buy_date: '', catatan: '' }
+const EMPTY = { asset_name: '', buy_price: '', buy_date: '' }
 
 export default function PhysicalTable({ data, uid, onRefresh, showToast }) {
   const { t } = useLang()
@@ -64,7 +64,7 @@ export default function PhysicalTable({ data, uid, onRefresh, showToast }) {
   )
 
   const openAdd  = () => { setForm({ ...EMPTY, buy_date: new Date().toISOString().slice(0, 10) }); setEditId(null); setSaveErr(null); setModal(true) }
-  const openEdit = (r) => { setForm({ asset_name: r.asset_name, buy_price: r.buy_price, buy_date: r.buy_date?.slice(0, 10) || '', catatan: r.catatan || '' }); setEditId(r.id); setSaveErr(null); setModal(true) }
+  const openEdit = (r) => { setForm({ asset_name: r.asset_name, buy_price: r.buy_price, buy_date: r.buy_date?.slice(0, 10) || '' }); setEditId(r.id); setSaveErr(null); setModal(true) }
   const close    = () => { setModal(false); setEditId(null); setSaveErr(null) }
 
   const save = async () => {
@@ -75,7 +75,6 @@ export default function PhysicalTable({ data, uid, onRefresh, showToast }) {
       asset_name: form.asset_name.trim(),
       buy_price:  Number(form.buy_price),
       buy_date:   form.buy_date || null,
-      catatan:    form.catatan,
       user_id:    uid,
     }
     const { error } = editId
@@ -124,10 +123,6 @@ export default function PhysicalTable({ data, uid, onRefresh, showToast }) {
               <label>{t('buyDate')}</label>
               <input type="date" value={form.buy_date} onChange={e => set('buy_date', e.target.value)} />
             </div>
-          </div>
-          <div className="field">
-            <label>{t('notes')}</label>
-            <input value={form.catatan || ''} onChange={e => set('catatan', e.target.value)} placeholder={t('optional')} />
           </div>
         </Modal>
       )}

@@ -839,7 +839,6 @@ function ServiceModal({ record, vehicle, uid, onClose, onSaved, showToast }) {
   const [items, setItems] = useState(() =>
     record?.service_type ? tryParseItems(record.service_type) : [{ nama: '', biaya: '' }]
   )
-  const [notes,  setNotes]  = useState(record?.notes || '')
   const [saving, setSaving] = useState(false)
   const [err,    setErr]    = useState('')
 
@@ -864,7 +863,7 @@ function ServiceModal({ record, vehicle, uid, onClose, onSaved, showToast }) {
       product_used:  null,
       shop:          shop.trim() || null,
       cost:          total,
-      notes:         notes.trim() || null,
+      notes:         null,
     }
     let error
     if (record) {
@@ -954,11 +953,6 @@ function ServiceModal({ record, vehicle, uid, onClose, onSaved, showToast }) {
               <span>Total</span>
               <span className="svc-item-total-val">{fmtRp(total)}</span>
             </div>
-          </div>
-
-          <div className="field" style={{ marginTop: '0.75rem' }}>
-            <label>Catatan (opsional)</label>
-            <input type="text" placeholder="Keterangan tambahan" value={notes} onChange={e => setNotes(e.target.value)} />
           </div>
 
           {err && <div className="modal-error">{err}</div>}

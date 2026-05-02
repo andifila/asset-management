@@ -8,7 +8,7 @@ import NumInput from './NumInput'
 import { useLang } from '../lib/LangContext'
 import Pagination, { paginate } from './Pagination'
 
-const EMPTY = { nama_aset: '', kategori: 'pasar_uang', saldo: '', aktual: '', catatan: '' }
+const EMPTY = { nama_aset: '', kategori: 'pasar_uang', saldo: '', aktual: '' }
 const KAT_CLASS = { pasar_uang: 'badge-teal', obligasi: 'badge-blue', saham: 'badge-amber' }
 
 export default function BibitTable({ data, uid, onRefresh, showToast }) {
@@ -82,7 +82,7 @@ export default function BibitTable({ data, uid, onRefresh, showToast }) {
     if (Number(form.saldo) <= 0) { setSaveErr(t('errBalance')); return }
     if (Number(form.aktual) < 0) { setSaveErr(t('errActual')); return }
     setSaving(true); setSaveErr(null)
-    const p = { nama_aset: form.nama_aset.trim(), kategori: form.kategori, saldo: Number(form.saldo), aktual: Number(form.aktual), catatan: form.catatan, user_id: uid }
+    const p = { nama_aset: form.nama_aset.trim(), kategori: form.kategori, saldo: Number(form.saldo), aktual: Number(form.aktual), user_id: uid }
     const { error } = editId
       ? await supabase.from('bibit_assets').update(p).eq('id', editId)
       : await supabase.from('bibit_assets').insert(p)
@@ -128,9 +128,6 @@ export default function BibitTable({ data, uid, onRefresh, showToast }) {
             <div className="field"><label>{t('actualLabel')}</label>
               <NumInput value={form.aktual} onChange={v => set('aktual', v)} placeholder="0" />
             </div>
-          </div>
-          <div className="field"><label>{t('notes')}</label>
-            <input value={form.catatan || ''} onChange={e => set('catatan', e.target.value)} placeholder={t('optional')} />
           </div>
         </Modal>
       )}
