@@ -119,8 +119,69 @@ function WeddingSkeleton() {
   )
 }
 
-// ── Setup Modal (All-in-one: total budget + categories) ───────────────────────
-function SetupModal({ uid, items, settings, onClose, onSaved, showToast }) {
+// ── Global Budget Modal ───────────────────────────────────────────────────────
+function GlobalBudgetModal({ uid, currentBudget, onClose, onSaved, showToast }) {
+  const { t } = useLang()
+  const [value,  setValue]  = useState(currentBudget ? String(currentBudget) : '')
+  const [saving, setSaving] = useState(false)
+  const [err,    setErr]    = useState('')
+
+  const save = async () => {
+    const num = value ? Number(parseNum(value)) : 0
+    setSaving(true); setErr('')
+    try {
+      const { error } = await supabase.from('wedding_settings')
+        .upsert({ user_id: uid, total_budget: num }, { onConflict: 'user_id' })
+      if (error) {
+        const { error: iErr } = await supabase.from('wedding_settings')
+          .insert({ user_id: uid, total_budget: num })
+        if (iErr) { setErr(iErr.message); setSaving(false); return }
+      }
+      showToast(t('wpBudgetSaved'))
+      onSaved(); onClose()
+    } catch (e) {
+      setErr(e.message || 'Error'); setSaving(false)
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal-box" style={{ maxWidth: 380 }}>
+        <div className="modal-header">
+          <span className="modal-title">💰 {t('wpTotalBudget')}</span>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+        <div className="modal-body">
+          <div style={{ fontSize: '0.73rem', color: 'var(--muted)', marginBottom: '0.85rem' }}>
+            {t('wpGlobalBudgetHint')}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ color: 'var(--muted)', fontSize: '0.84rem', flexShrink: 0 }}>Rp</span>
+            <input
+              autoFocus
+              inputMode="numeric"
+              value={fmtThousands(value)}
+              onChange={e => setValue(parseNum(e.target.value))}
+              onKeyDown={e => e.key === 'Enter' && save()}
+              placeholder="e.g. 150.000.000"
+              style={{ flex: 1, fontFamily: "'DM Mono',monospace", fontSize: '1.05rem', fontWeight: 700 }}
+            />
+          </div>
+          {err && <div className="modal-error" style={{ marginTop: '0.6rem' }}>{err}</div>}
+        </div>
+        <div className="modal-footer">
+          <button className="btn-cancel" onClick={onClose}>{t('cancel')}</button>
+          <button className="btn-save" onClick={save} disabled={saving}>
+            {saving ? t('saving') : t('save')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Setup Modal (categories only) ─────────────────────────────────────────────
+function SetupModal({ uid, items, onClose, onSaved, showToast }) {
   const { t } = useLang()
 
   const [rows, setRows] = useState(() =>
@@ -131,9 +192,6 @@ function SetupModal({ uid, items, settings, onClose, onSaved, showToast }) {
       deleted:    false,
       isNew:      false,
     }))
-  )
-  const [totalBudget, setTotalBudget] = useState(
-    settings?.total_budget ? String(settings.total_budget) : ''
   )
   const [saving, setSaving] = useState(false)
   const [err,    setErr]    = useState('')
@@ -157,26 +215,16 @@ function SetupModal({ uid, items, settings, onClose, onSaved, showToast }) {
     const names = activeRows.map(r => r.category.trim()).filter(Boolean)
     if (new Set(names).size !== names.length) { setErr(t('wpErrDupCat')); return }
 
-    setSaving(true)
-    setErr('')
+    setSaving(true); setErr('')
 
     try {
-      // 1. Save total budget (non-blocking — don't abort category saves if this fails)
-      const budgetNum = totalBudget ? Number(parseNum(totalBudget)) : 0
-      const { error: sErr } = await supabase.from('wedding_settings')
-        .upsert({ user_id: uid, total_budget: budgetNum }, { onConflict: 'user_id' })
-      if (sErr) {
-        // Try insert as fallback (in case upsert constraint issue)
-        await supabase.from('wedding_settings').insert({ user_id: uid, total_budget: budgetNum })
-      }
-
-      // 2. Delete marked rows
+      // Delete marked rows
       for (const row of rows.filter(r => r.deleted && r.id)) {
         await supabase.from('wedding_transactions').delete().eq('budget_item_id', row.id).eq('user_id', uid)
         await supabase.from('wedding_budget_items').delete().eq('id', row.id).eq('user_id', uid)
       }
 
-      // 3. Insert new rows
+      // Insert new rows
       const toInsert = activeRows.filter(r => !r.id && r.category.trim()).map(r => ({
         user_id:    uid,
         category:   r.category.trim(),
@@ -188,7 +236,7 @@ function SetupModal({ uid, items, settings, onClose, onSaved, showToast }) {
         if (error) { setErr(error.message); setSaving(false); return }
       }
 
-      // 4. Update existing rows
+      // Update existing rows
       const errs = await Promise.all(
         activeRows.filter(r => r.id).map(r =>
           supabase.from('wedding_budget_items')
@@ -217,35 +265,11 @@ function SetupModal({ uid, items, settings, onClose, onSaved, showToast }) {
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal-box" style={{ maxWidth: 560, maxHeight: '88vh', display: 'flex', flexDirection: 'column' }}>
         <div className="modal-header">
-          <h3 className="modal-title">Setup Kategori & Budget</h3>
+          <h3 className="modal-title">{t('wpSetupTitle')}</h3>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
         <div className="modal-body" style={{ overflowY: 'auto', flex: 1 }}>
-
-          {/* ── Total Budget section ── */}
-          <div style={{
-            marginBottom: '1.25rem', padding: '0.85rem 1rem',
-            background: 'rgba(139,125,232,0.07)', border: '1px solid rgba(139,125,232,0.22)',
-            borderRadius: 10,
-          }}>
-            <div style={{ fontSize: '0.67rem', color: 'var(--purple)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
-              💰 {t('wpTotalBudget')}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ color: 'var(--muted)', fontSize: '0.84rem', flexShrink: 0 }}>Rp</span>
-              <input
-                inputMode="numeric"
-                value={fmtThousands(totalBudget)}
-                onChange={e => setTotalBudget(parseNum(e.target.value))}
-                placeholder="e.g. 150.000.000"
-                style={{ flex: 1, fontFamily: "'DM Mono',monospace", fontSize: '1.05rem', fontWeight: 700 }}
-              />
-            </div>
-            <div style={{ fontSize: '0.67rem', color: 'var(--muted)', marginTop: 6 }}>
-              {t('wpGlobalBudgetHint')}
-            </div>
-          </div>
 
           {/* ── Category list header ── */}
           <div style={{ display: 'flex', gap: 8, paddingBottom: '0.4rem', marginBottom: '0.4rem', borderBottom: '1px solid var(--border)' }}>
@@ -562,6 +586,7 @@ export default function WeddingPlanner({ session, onHome }) {
   const [loading,          setLoading]          = useState(true)
   const [selectedId,       setSelectedId]       = useState(null)
   const [showSetup,        setShowSetup]        = useState(false)
+  const [showBudgetModal,  setShowBudgetModal]  = useState(false)
   const [showAddTx,        setShowAddTx]        = useState(false)
   const [editTx,           setEditTx]           = useState(null)
   const [txItemId,         setTxItemId]         = useState(null)
@@ -730,13 +755,11 @@ export default function WeddingPlanner({ session, onHome }) {
                 <div className="wp-hero-val" style={{ marginBottom: 0 }}>
                   Rp {animBudget.toLocaleString('id-ID')}
                 </div>
-                {!globalBudget && (
-                  <span
-                    onClick={() => setShowSetup(true)}
-                    style={{ fontSize: '0.68rem', color: 'var(--amber)', background: 'rgba(233,162,41,0.12)', border: '1px solid rgba(233,162,41,0.25)', padding: '0.15rem 0.55rem', borderRadius: 20, cursor: 'pointer' }}>
-                    {t('wpSetGlobalBudget')} →
-                  </span>
-                )}
+                <span
+                  onClick={() => setShowBudgetModal(true)}
+                  style={{ fontSize: '0.68rem', color: globalBudget ? 'var(--muted)' : 'var(--amber)', background: globalBudget ? 'rgba(255,255,255,0.05)' : 'rgba(233,162,41,0.12)', border: `1px solid ${globalBudget ? 'var(--border2)' : 'rgba(233,162,41,0.25)'}`, padding: '0.15rem 0.55rem', borderRadius: 20, cursor: 'pointer' }}>
+                  {globalBudget ? `✏ ${t('wpEditBudget')}` : `${t('wpSetGlobalBudget')} →`}
+                </span>
               </div>
               <div className="wp-progress-wrap">
                 <div className="wp-progress-track">
@@ -1051,8 +1074,12 @@ export default function WeddingPlanner({ session, onHome }) {
       )}
 
       {/* ── MODALS ── */}
+      {showBudgetModal && (
+        <GlobalBudgetModal uid={uid} currentBudget={settings?.total_budget || 0}
+          onClose={() => setShowBudgetModal(false)} onSaved={fetchAll} showToast={showToast} />
+      )}
       {showSetup && (
-        <SetupModal uid={uid} items={items} settings={settings}
+        <SetupModal uid={uid} items={items}
           onClose={() => setShowSetup(false)} onSaved={fetchAll} showToast={showToast} />
       )}
       {showAddTx && (
