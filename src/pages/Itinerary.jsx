@@ -1,8 +1,9 @@
 // src/pages/Itinerary.jsx
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useLang } from '../lib/LangContext'
 import Toast from '../components/Toast'
+import { useTrips, useDeleteTrip } from '../hooks/useTrips'
 
 const CURRENT_YEAR = 2026
 
@@ -149,40 +150,13 @@ const ACT_STATUS = {
   optional:  { label: 'Opsional',  color: '#8b7de8' },
 }
 
-const SEED_TRIPS = [
-  {
-    destination: 'Bali',
-    start_date: '2025-05-03', end_date: '2025-05-06',
-    people_count: 2, est_budget_per_person: 3200000, status: 'upcoming',
-    itinerary: [
-      { date: '2025-05-03', time_start: '08:00', time_end: '10:00', activity: 'Tiba Ngurah Rai', location: 'Bandara Ngurah Rai', category: 'transport', price_per_person: 500000, note: 'Pesawat pagi', status: 'upcoming', attachment_url: '' },
-      { date: '2025-05-03', time_start: '12:00', time_end: '', activity: 'Check-in Hotel', location: 'Seminyak', category: 'akomodasi', price_per_person: 450000, note: '', status: 'upcoming', attachment_url: '' },
-      { date: '2025-05-04', time_start: '09:00', time_end: '11:00', activity: 'Tegallalang Rice', location: 'Ubud', category: 'aktivitas', price_per_person: 50000, note: '', status: 'upcoming', attachment_url: '' },
-      { date: '2025-05-04', time_start: '13:00', time_end: '15:00', activity: 'Tirta Empul', location: 'Ubud', category: 'tiket', price_per_person: 50000, note: '', status: 'upcoming', attachment_url: '' },
-      { date: '2025-05-05', time_start: '07:00', time_end: '18:00', activity: 'Kelingking Beach', location: 'Nusa Penida', category: 'aktivitas', price_per_person: 300000, note: 'Speed boat', status: 'upcoming', attachment_url: '' },
-    ],
-    notes: null,
-  },
-  {
-    destination: 'Bromo', start_date: '2024-12-14', end_date: '2024-12-15',
-    people_count: 3, est_budget_per_person: 0, status: 'done', itinerary: null, notes: null,
-  },
-  {
-    destination: 'Yogyakarta', start_date: '2024-08-20', end_date: '2024-08-23',
-    people_count: 1, est_budget_per_person: 0, status: 'done', itinerary: null, notes: null,
-  },
-  {
-    destination: 'Lombok', start_date: '2024-03-10', end_date: '2024-03-14',
-    people_count: 4, est_budget_per_person: 0, status: 'done', itinerary: null, notes: null,
-  },
-]
 
 function ItinSkeleton() {
   return (
     <main className="main-content">
-      <div className="itin-smart-stats">
+      <div className="stat-grid">
         {[1,2,3,4].map(i => (
-          <div key={i} className="itin-smart-card">
+          <div key={i} className="stat-card">
             <span className="skel-line skel-h-sm" style={{ width: '55%', display: 'block', marginBottom: 8 }} />
             <span className="skel-line skel-h-lg" style={{ width: '70%', display: 'block', marginBottom: 6 }} />
             <span className="skel-line skel-h-sm" style={{ width: '45%', display: 'block' }} />
@@ -234,9 +208,7 @@ function generateItinInsights(trips, done, ongoing, upcoming, totalDaysTraveled,
   return out.slice(0, 3)
 }
 
-export default function Itinerary({ session, onHome }) {
-  const [trips,    setTrips]    = useState([])
-  const [loading,  setLoading]  = useState(true)
+export default function Itinerary({ session }) {
   const [detail,   setDetail]   = useState(null)
   const [showAdd,  setShowAdd]  = useState(false)
   const [editTrip, setEditTrip] = useState(null)
@@ -244,41 +216,18 @@ export default function Itinerary({ session, onHome }) {
   const toastKey = useRef(0)
 
   const uid    = session.user.id
-  const { lang, t, toggle: toggleLang } = useLang()
-  const avatar = session.user.user_metadata?.avatar_url
-  const uname  = session.user.user_metadata?.full_name || session.user.email
+  const { t } = useLang()
+
+  const { data: trips = [], isLoading: loading, refetch: fetchTrips } = useTrips(uid)
+  const deleteTrip = useDeleteTrip(uid)
 
   const showToast = useCallback((msg, type = 'success') => {
     toastKey.current += 1
     setToast({ message: msg, type, key: toastKey.current })
   }, [])
 
-  const fetchTrips = useCallback(async () => {
-    setLoading(true)
-    const { data, error } = await supabase
-      .from('trips').select('*').eq('user_id', uid).order('start_date', { ascending: false })
-
-    if (error) {
-      showToast('Setup tabel Supabase dibutuhkan. Jalankan SQL migration.', 'error')
-      setLoading(false)
-      return
-    }
-
-    if (!data.length) {
-      const { data: seeded } = await supabase
-        .from('trips').insert(SEED_TRIPS.map(t => ({ ...t, user_id: uid }))).select()
-      setTrips(seeded || [])
-    } else {
-      setTrips(data)
-    }
-    setLoading(false)
-  }, [uid])
-
-  useEffect(() => { fetchTrips() }, [fetchTrips])
-
   const handleDelete = async (id) => {
-    await supabase.from('trips').delete().eq('id', id).eq('user_id', uid)
-    setTrips(prev => prev.filter(t => t.id !== id))
+    await deleteTrip.mutateAsync(id)
     showToast(t('itinTripDeleted'))
   }
 
@@ -287,32 +236,9 @@ export default function Itinerary({ session, onHome }) {
   const done      = trips.filter(t => effectiveStatus(t) === 'done')
   const milestones = trips.filter(t => ['done', 'cancelled', 'optional'].includes(effectiveStatus(t)))
 
-  const year2026 = trips
-    .filter(t => {
-      const y1 = t.start_date?.slice(0, 4), y2 = t.end_date?.slice(0, 4)
-      return y1 === String(CURRENT_YEAR) || y2 === String(CURRENT_YEAR)
-    })
-    .sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''))
-
   const nextTrip = [...ongoing, ...upcoming]
     .filter(t => t.start_date)
     .sort((a, b) => a.start_date.localeCompare(b.start_date))[0]
-
-  const now = new Date()
-  const thisM = now.getMonth(), thisY = now.getFullYear()
-  const lastM = thisM === 0 ? 11 : thisM - 1
-  const lastY = thisM === 0 ? thisY - 1 : thisY
-  const tripsThisMonth = trips.filter(t => {
-    if (!t.start_date) return false
-    const [y, m] = t.start_date.split('-').map(Number)
-    return y === thisY && m - 1 === thisM
-  }).length
-  const tripsLastMonth = trips.filter(t => {
-    if (!t.start_date) return false
-    const [y, m] = t.start_date.split('-').map(Number)
-    return y === lastY && m - 1 === lastM
-  }).length
-  const tripDelta = tripsThisMonth - tripsLastMonth
 
   const doneTripsList = trips.filter(t => effectiveStatus(t) === 'done')
 
@@ -338,40 +264,22 @@ export default function Itinerary({ session, onHome }) {
     ? Math.round(tripsWithBudget.reduce((s, t) => s + t.est_budget_per_person, 0) / tripsWithBudget.length)
     : 0
 
-
   return (
-    <div className="app">
-      <header className="topbar">
-        <div className="topbar-brand" style={{ cursor: 'pointer' }} onClick={onHome}>
-          ✈ <span>{t('itinTitle')}</span>
-        </div>
-        <div className="topbar-right">
-          {onHome && <button className="btn-home" onClick={onHome}>← Home</button>}
-          {avatar && <img src={avatar} className="avatar" alt="avatar" referrerPolicy="no-referrer" />}
-          <span className="topbar-name">{uname}</span>
-          <button className="btn-lang" onClick={toggleLang}>
-            <span className={lang === 'id' ? 'lang-active' : ''}>ID</span>
-            <span className="lang-sep">·</span>
-            <span className={lang === 'en' ? 'lang-active' : ''}>EN</span>
-          </button>
-        </div>
-      </header>
-
+    <>
       {loading ? <ItinSkeleton /> : (
         <main className="main-content">
           {/* Smart Stats Row */}
-          <div className="itin-smart-stats">
+          <div className="stat-grid">
             {[
-              { eyebrow: t('itinStatDone'),    val: doneTripsList.length || '—',              sub: `${trips.length} ${t('itinStatTotalTrips')}`,                  color: 'var(--blue)',   accent: 'var(--blue)'   },
-              { eyebrow: t('itinStatDays'),    val: totalDaysTraveled > 0 ? `${totalDaysTraveled}` : '—', sub: t('itinStatTotalDays'),                            color: 'var(--green)',  accent: 'var(--green)'  },
-              { eyebrow: t('itinStatBudget'),  val: totalBudget > 0 ? `${(totalBudget/1e6).toFixed(1)}jt` : '—', sub: totalBudget > 0 ? t('itinStatEstimate') : t('noData'), color: 'var(--purple)', accent: 'var(--purple)' },
-              { eyebrow: t('itinStatAvg'),     val: avgCostPerTrip > 0 ? `${(avgCostPerTrip/1e6).toFixed(1)}jt` : '—', sub: t('itinStatPerPerson'),             color: 'var(--amber)',  accent: 'var(--amber)'  },
+              { eyebrow: t('itinStatDone'),    val: doneTripsList.length || '—',              sub: `${trips.length} ${t('itinStatTotalTrips')}`,                  color: 'var(--blue)'   },
+              { eyebrow: t('itinStatDays'),    val: totalDaysTraveled > 0 ? `${totalDaysTraveled}` : '—', sub: t('itinStatTotalDays'),                            color: 'var(--green)'  },
+              { eyebrow: t('itinStatBudget'),  val: totalBudget > 0 ? `${(totalBudget/1e6).toFixed(1)}jt` : '—', sub: totalBudget > 0 ? t('itinStatEstimate') : t('noData'), color: 'var(--purple)' },
+              { eyebrow: t('itinStatAvg'),     val: avgCostPerTrip > 0 ? `${(avgCostPerTrip/1e6).toFixed(1)}jt` : '—', sub: t('itinStatPerPerson'),             color: 'var(--amber)'  },
             ].map((c, i) => (
-              <div key={i} className="itin-smart-card">
-                <div className="itin-smart-eyebrow">{c.eyebrow}</div>
-                <div className="itin-smart-val" style={{ color: c.color }}>{c.val}</div>
-                <div className="itin-smart-sub">{c.sub}</div>
-                <div className="itin-smart-accent" style={{ background: c.accent }} />
+              <div key={i} className="stat-card">
+                <div className="stat-card-label">{c.eyebrow}</div>
+                <div className="stat-card-value" style={{ color: c.color }}>{c.val}</div>
+                <div className="stat-card-sub">{c.sub}</div>
               </div>
             ))}
           </div>
@@ -380,11 +288,11 @@ export default function Itinerary({ session, onHome }) {
           {(() => {
             const chips = generateItinInsights(trips, done, ongoing, upcoming, totalDaysTraveled, longestTrip, totalBudget)
             return chips.length > 0 ? (
-              <div className="mod-insight-strip">
+              <div className="insight-strip">
                 {chips.map((c, i) => (
-                  <div key={i} className={`mod-insight-chip mod-chip-${c.type}`}>
-                    <span className="mod-chip-icon">{c.icon}</span>
-                    <span className="mod-chip-text">{c.text}</span>
+                  <div key={i} className={`insight-chip chip-${c.type}`}>
+                    <span className="chip-icon">{c.icon}</span>
+                    <span className="chip-text">{c.text}</span>
                   </div>
                 ))}
               </div>
@@ -392,12 +300,14 @@ export default function Itinerary({ session, onHome }) {
           })()}
 
           {/* Action Bar */}
-          <div className="itin-action-bar">
-            <div className="itin-action-left">
-              <div className="itin-action-title">{t('itinMyTrips')}</div>
-              <div className="itin-action-sub">{ongoing.length > 0 ? `Sedang berlangsung: ${ongoing[0].destination}` : upcoming.length > 0 ? `${upcoming.length} trip upcoming` : `${doneTripsList.length} destinasi dikunjungi`}</div>
+          <div className="action-bar">
+            <div>
+              <div className="section-title">{t('itinMyTrips')}</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--muted)', marginTop: 2 }}>
+                {ongoing.length > 0 ? `Sedang berlangsung: ${ongoing[0].destination}` : upcoming.length > 0 ? `${upcoming.length} trip upcoming` : `${doneTripsList.length} destinasi dikunjungi`}
+              </div>
             </div>
-            <button className="itin-action-cta" onClick={() => { setEditTrip(null); setShowAdd(true) }}>
+            <button className="btn-primary" onClick={() => { setEditTrip(null); setShowAdd(true) }}>
               {t('itinAddTrip')}
             </button>
           </div>
@@ -405,7 +315,7 @@ export default function Itinerary({ session, onHome }) {
           <div className="itin-trip-layout">
             {/* Ongoing */}
             <div className="itin-section itin-section-ongoing">
-              <div className="section-header">
+              <div className="action-bar" style={{ marginBottom: '0.75rem' }}>
                 <div className="section-title" style={{ color: '#4a90d9' }}>{t('itinOngoing')}</div>
               </div>
               {ongoing.length > 0 ? (
@@ -430,7 +340,7 @@ export default function Itinerary({ session, onHome }) {
 
             {/* Upcoming */}
             <div className="itin-section itin-section-upcoming">
-              <div className="section-header">
+              <div className="action-bar" style={{ marginBottom: '0.75rem' }}>
                 <div className="section-title">{t('itinUpcoming')}</div>
               </div>
               <div className="itin-upcoming-grid">
@@ -442,7 +352,6 @@ export default function Itinerary({ session, onHome }) {
                     onDelete={() => handleDelete(trip.id)}
                   />
                 ))}
-                {/* Card tambah trip baru */}
                 <div
                   className="itin-card-upcoming itin-card-add"
                   onClick={() => { setEditTrip(null); setShowAdd(true) }}
@@ -456,7 +365,7 @@ export default function Itinerary({ session, onHome }) {
           </div>
 
           <div className="itin-section">
-            <div className="section-header">
+            <div className="action-bar" style={{ marginBottom: '0.75rem' }}>
               <div className="section-title">
                 {t('itinMilestones')}
                 <span style={{ fontSize: '0.65rem', color: 'var(--muted)', fontWeight: 400, marginLeft: 8 }}>
@@ -494,66 +403,7 @@ export default function Itinerary({ session, onHome }) {
       )}
 
       {toast && <Toast key={toast.key} message={toast.message} type={toast.type} onDone={() => setToast(null)} />}
-    </div>
-  )
-}
-
-// ─── Calendar View ──────────────────────────────────────────────────────────
-
-const MONTH_NAMES = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
-const DAY_LABELS  = ['S','S','R','K','J','S','M']
-
-function CalendarView({ trips, year, onTripClick }) {
-  const dateMap = {}
-  trips.forEach(t => {
-    if (!t.start_date || !t.end_date) return
-    const [y1,m1,d1] = t.start_date.split('-'), [y2,m2,d2] = t.end_date.split('-')
-    let cur = new Date(+y1,+m1-1,+d1)
-    const end = new Date(+y2,+m2-1,+d2)
-    while (cur <= end) {
-      if (cur.getFullYear() === year) {
-        const key = `${year}-${String(cur.getMonth()+1).padStart(2,'0')}-${String(cur.getDate()).padStart(2,'0')}`
-        if (!dateMap[key]) dateMap[key] = []
-        dateMap[key].push(t)
-      }
-      cur.setDate(cur.getDate() + 1)
-    }
-  })
-
-  return (
-    <div className="itin-calendar">
-      {MONTH_NAMES.map((name, mi) => {
-        const daysInMonth = new Date(year, mi + 1, 0).getDate()
-        const offset = (new Date(year, mi, 1).getDay() + 6) % 7
-        const cells = Array(offset).fill(null)
-        for (let d = 1; d <= daysInMonth; d++) cells.push(d)
-
-        return (
-          <div key={mi} className="itin-cal-month">
-            <div className="itin-cal-month-name">{name.slice(0, 3)} {year}</div>
-            <div className="itin-cal-grid">
-              {DAY_LABELS.map((l, i) => <div key={i} className="itin-cal-day-label">{l}</div>)}
-              {cells.map((day, idx) => {
-                if (!day) return <div key={idx} />
-                const key = `${year}-${String(mi+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
-                const ts = dateMap[key] || []
-                const hasTrip = ts.length > 0
-                const col = hasTrip ? (TRIP_STATUS[ts[0].status]?.color || '#3dba7e') : null
-                return (
-                  <div
-                    key={idx}
-                    className={`itin-cal-day${hasTrip ? ' itin-cal-day-trip' : ''}`}
-                    style={hasTrip ? { background: `${col}28`, color: col, borderColor: `${col}50` } : {}}
-                    onClick={hasTrip ? () => onTripClick(ts[0]) : undefined}
-                    title={hasTrip ? ts.map(t => t.destination).join(', ') : undefined}
-                  >{day}</div>
-                )
-              })}
-            </div>
-          </div>
-        )
-      })}
-    </div>
+    </>
   )
 }
 
@@ -790,10 +640,10 @@ function TripDetailModal({ trip, uid, onClose, onSaved }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <button className="btn-add" style={{ fontSize: '0.72rem', padding: '0.25rem 0.7rem', background: '#25d366', border: '1px solid #25d366' }} onClick={waShare}>
+            <button className="btn-secondary" style={{ fontSize: '0.72rem', padding: '0.25rem 0.7rem', background: '#25d366', border: '1px solid #25d366', color: '#fff' }} onClick={waShare}>
               WhatsApp
             </button>
-            <button className="btn-add" style={{ fontSize: '0.72rem', padding: '0.25rem 0.65rem', background: 'var(--bg3)', borderColor: 'var(--border2)' }} onClick={copyShare}>
+            <button className="btn-secondary" style={{ fontSize: '0.72rem', padding: '0.25rem 0.65rem' }} onClick={copyShare}>
               {t('itinCopy')}
             </button>
             <button className="modal-close" onClick={onClose}>✕</button>
@@ -925,7 +775,7 @@ function FilePreviewModal({ url, onClose }) {
           <div style={{ display: 'flex', gap: 6 }}>
             <a
               href={url} download
-              className="btn-add"
+              className="btn-secondary"
               style={{ fontSize: '0.72rem', padding: '0.25rem 0.65rem', textDecoration: 'none' }}
             >
               Download
@@ -946,7 +796,7 @@ function FilePreviewModal({ url, onClose }) {
               <div style={{ fontSize: '0.8rem', color: 'var(--muted)', marginBottom: '1rem' }}>
                 Format ini tidak bisa dipreview langsung
               </div>
-              <a href={url} target="_blank" rel="noopener noreferrer" className="btn-save" style={{ textDecoration: 'none', display: 'inline-block' }}>
+              <a href={url} target="_blank" rel="noopener noreferrer" className="btn-primary" style={{ textDecoration: 'none', display: 'inline-block' }}>
                 Buka di tab baru ↗
               </a>
             </div>
@@ -1258,15 +1108,15 @@ function TripModal({ trip, uid, onClose, onSaved, showToast }) {
                 </div>
               )}
             </div>
-            <button type="button" className="btn-add" onClick={addAct}
+            <button type="button" className="btn-secondary" onClick={addAct}
               style={{ marginTop: 6, width: '100%' }}>{t('itinAddActivity')}</button>
           </div>
 
           {err && <div className="modal-error">{err}</div>}
         </div>
         <div className="modal-footer">
-          <button className="btn-cancel" onClick={onClose}>{t('cancel')}</button>
-          <button className="btn-save" onClick={save} disabled={saving}>
+          <button className="btn-secondary" onClick={onClose}>{t('cancel')}</button>
+          <button className="btn-primary" onClick={save} disabled={saving}>
             {saving ? t('saving') : t('save')}
           </button>
         </div>

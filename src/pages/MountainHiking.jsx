@@ -1,9 +1,10 @@
 // src/pages/MountainHiking.jsx
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useLang } from '../lib/LangContext'
 import Toast from '../components/Toast'
 import Pagination, { paginate } from '../components/Pagination'
+import { useHikes, useDeleteHike } from '../hooks/useHikes'
 
 const STATUS = {
   summit: { label: 'Summit',  color: '#3dba7e', bg: 'rgba(61,186,126,0.12)',  bd: 'rgba(61,186,126,0.28)' },
@@ -73,21 +74,13 @@ function hikeDuration(start, end) {
   return `${days} hari ${nights} malam`
 }
 
-const SEED_HIKES = [
-  { mountain: 'Semeru',       elevation: 3676, city: 'Lumajang',    start_date: '2023-10-12', end_date: '2023-10-15', status: 'summit', notes: null },
-  { mountain: 'Arjuno',       elevation: 3339, city: 'Pasuruan',    start_date: '2023-06-03', end_date: '2023-06-05', status: 'summit', notes: 'Traverse sekaligus Welirang' },
-  { mountain: 'Welirang',     elevation: 3156, city: 'Pasuruan',    start_date: '2023-06-03', end_date: '2023-06-05', status: 'summit', notes: 'Satu trip traverse bersama Arjuno' },
-  { mountain: 'Lawu',         elevation: 3265, city: 'Karanganyar', start_date: '2023-01-14', end_date: '2023-01-15', status: 'summit', notes: null },
-  { mountain: 'Bromo',        elevation: 2329, city: 'Probolinggo', start_date: '2024-12-14', end_date: '2024-12-15', status: 'kawah',  notes: null },
-  { mountain: 'Penanggungan', elevation: 1653, city: 'Mojokerto',   start_date: '2022-04-17', end_date: '2022-04-17', status: 'summit', notes: null },
-]
 
 function HikeSkeleton() {
   return (
     <main className="main-content">
-      <div className="mod-stat-row">
+      <div className="stat-grid">
         {[1,2,3,4].map(i => (
-          <div key={i} className="mod-stat-card">
+          <div key={i} className="stat-card">
             <span className="skel-line skel-h-sm" style={{ width: '50%', marginBottom: 8, display: 'block' }} />
             <span className="skel-line skel-h-lg" style={{ width: '60%', marginBottom: 6, display: 'block' }} />
             <span className="skel-line skel-h-sm" style={{ width: '40%', display: 'block' }} />
@@ -182,10 +175,7 @@ function SevenSummitTracker({ hikes }) {
   )
 }
 
-export default function MountainHiking({ session, onHome }) {
-  const [hikes,    setHikes]    = useState([])
-  const [loading,  setLoading]  = useState(true)
-  const [sort,     setSort]     = useState('date')
+export default function MountainHiking({ session }) {
   const [page,     setPage]     = useState(1)
   const [showAdd,  setShowAdd]  = useState(false)
   const [editHike, setEditHike] = useState(null)
@@ -193,41 +183,18 @@ export default function MountainHiking({ session, onHome }) {
   const toastKey = useRef(0)
 
   const uid    = session.user.id
-  const { lang, t, toggle: toggleLang } = useLang()
-  const avatar = session.user.user_metadata?.avatar_url
-  const uname  = session.user.user_metadata?.full_name || session.user.email
+  const { t } = useLang()
+
+  const { data: hikes = [], isLoading: loading, refetch: refetchHikes } = useHikes(uid)
+  const deleteHike = useDeleteHike(uid)
 
   const showToast = useCallback((msg, type = 'success') => {
     toastKey.current += 1
     setToast({ message: msg, type, key: toastKey.current })
   }, [])
 
-  const fetchHikes = useCallback(async () => {
-    setLoading(true)
-    const { data, error } = await supabase
-      .from('hikes').select('*').eq('user_id', uid).order('start_date', { ascending: false })
-
-    if (error) {
-      showToast('Setup tabel Supabase dibutuhkan. Jalankan SQL migration.', 'error')
-      setLoading(false)
-      return
-    }
-
-    if (!data.length) {
-      const { data: seeded } = await supabase
-        .from('hikes').insert(SEED_HIKES.map(h => ({ ...h, user_id: uid }))).select()
-      setHikes(seeded || [])
-    } else {
-      setHikes(data)
-    }
-    setLoading(false)
-  }, [uid])
-
-  useEffect(() => { fetchHikes() }, [fetchHikes])
-
   const handleDelete = async (id) => {
-    await supabase.from('hikes').delete().eq('id', id).eq('user_id', uid)
-    setHikes(prev => prev.filter(h => h.id !== id))
+    await deleteHike.mutateAsync(id)
     showToast(t('hikeDeletedToast'))
   }
 
@@ -237,13 +204,11 @@ export default function MountainHiking({ session, onHome }) {
   const top5      = [...hikes].filter(h => h.elevation).sort((a, b) => (b.elevation||0) - (a.elevation||0)).slice(0, 5)
   const maxTop5   = top5[0]?.elevation || 1
 
-  // Derived stats
   const maxElevation  = hikes.length ? Math.max(0, ...hikes.filter(h => h.elevation).map(h => h.elevation)) : 0
   const citiesVisited = [...new Set(hikes.filter(h => h.city).map(h => h.city))].length
   const matchesSjKey  = (mountain, key) => { const n = (mountain || '').toLowerCase().trim(); return n === key || n.includes(key) }
   const sevenSJCount  = SEVEN_SUMMITS_ORDER.filter(s => hikes.some(h => matchesSjKey(h.mountain, s.key))).length
 
-  // Achievement system
   const achievements = [
     hikes.length >= 1     && { icon: '🏔', title: 'Pendaki Perdana',  sub: 'Mulai perjalanan mendaki!' },
     summits >= 1          && { icon: '⛰',  title: 'First Summit',     sub: 'Puncak pertama berhasil!' },
@@ -257,51 +222,34 @@ export default function MountainHiking({ session, onHome }) {
   ].filter(Boolean)
 
   return (
-    <div className="app">
-      <header className="topbar">
-        <div className="topbar-brand" style={{ cursor: 'pointer' }} onClick={onHome}>
-          ▲ <span>{t('hikeTitle')}</span>
-        </div>
-        <div className="topbar-right">
-          {onHome && <button className="btn-home" onClick={onHome}>← Home</button>}
-          {avatar && <img src={avatar} className="avatar" alt="avatar" referrerPolicy="no-referrer" />}
-          <span className="topbar-name">{uname}</span>
-          <button className="btn-lang" onClick={toggleLang}>
-            <span className={lang === 'id' ? 'lang-active' : ''}>ID</span>
-            <span className="lang-sep">·</span>
-            <span className={lang === 'en' ? 'lang-active' : ''}>EN</span>
-          </button>
-        </div>
-      </header>
-
+    <>
       {loading ? <HikeSkeleton /> : (
         <main className="main-content">
-
-          {/* ── Summary stat cards ── */}
-          <div className="mod-stat-row">
-            <div className="mod-stat-card">
-              <div className="mod-stat-label">{t('hikeTotalHikes')}</div>
-              <div className="mod-stat-val">{hikes.length}</div>
-              <div className="mod-stat-sub">{t('hikeMountainsSub')}</div>
+          {/* Summary stat cards */}
+          <div className="stat-grid">
+            <div className="stat-card">
+              <div className="stat-card-label">{t('hikeTotalHikes')}</div>
+              <div className="stat-card-value">{hikes.length}</div>
+              <div className="stat-card-sub">{t('hikeMountainsSub')}</div>
             </div>
-            <div className="mod-stat-card">
-              <div className="mod-stat-label">{t('hikeSummitSuccess')}</div>
-              <div className="mod-stat-val" style={{ color: 'var(--green)' }}>{summits}</div>
-              <div className="mod-stat-sub">
+            <div className="stat-card">
+              <div className="stat-card-label">{t('hikeSummitSuccess')}</div>
+              <div className="stat-card-value" style={{ color: 'var(--green)' }}>{summits}</div>
+              <div className="stat-card-sub">
                 {hikes.length ? `${Math.round(summits / hikes.length * 100)}% ${t('hikeSuccessRate')}` : '—'}
               </div>
             </div>
-            <div className="mod-stat-card">
-              <div className="mod-stat-label">{t('hikeHighest')}</div>
-              <div className="mod-stat-val" style={{ color: 'var(--blue)' }}>
+            <div className="stat-card">
+              <div className="stat-card-label">{t('hikeHighest')}</div>
+              <div className="stat-card-value" style={{ color: 'var(--blue)' }}>
                 {maxElevation ? maxElevation.toLocaleString('id-ID') : '—'}
               </div>
-              <div className="mod-stat-sub">{t('hikeElevationUnit')}</div>
+              <div className="stat-card-sub">{t('hikeElevationUnit')}</div>
             </div>
-            <div className="mod-stat-card">
-              <div className="mod-stat-label">{t('hikeCitiesVisited')}</div>
-              <div className="mod-stat-val">{citiesVisited}</div>
-              <div className="mod-stat-sub">{t('hikeCitiesSub')}</div>
+            <div className="stat-card">
+              <div className="stat-card-label">{t('hikeCitiesVisited')}</div>
+              <div className="stat-card-value">{citiesVisited}</div>
+              <div className="stat-card-sub">{t('hikeCitiesSub')}</div>
             </div>
           </div>
 
@@ -309,11 +257,11 @@ export default function MountainHiking({ session, onHome }) {
           {(() => {
             const chips = generateHikeInsights(hikes, summits, maxElevation, sevenSJCount, citiesVisited)
             return chips.length > 0 ? (
-              <div className="mod-insight-strip">
+              <div className="insight-strip">
                 {chips.map((c, i) => (
-                  <div key={i} className={`mod-insight-chip mod-chip-${c.type}`}>
-                    <span className="mod-chip-icon">{c.icon}</span>
-                    <span className="mod-chip-text">{c.text}</span>
+                  <div key={i} className={`insight-chip chip-${c.type}`}>
+                    <span className="chip-icon">{c.icon}</span>
+                    <span className="chip-text">{c.text}</span>
                   </div>
                 ))}
               </div>
@@ -323,7 +271,7 @@ export default function MountainHiking({ session, onHome }) {
           {/* 7 Summit of Java Tracker */}
           {hikes.length > 0 && <SevenSummitTracker hikes={hikes} />}
 
-          {/* ── Achievements ── */}
+          {/* Achievements */}
           {achievements.length > 0 && (
             <div className="achievement-row">
               {achievements.map((a, i) => (
@@ -338,8 +286,8 @@ export default function MountainHiking({ session, onHome }) {
             </div>
           )}
 
-          {/* ── Log Pendakian ── */}
-          <div className="section-header">
+          {/* Log Pendakian */}
+          <div className="action-bar">
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
               <div className="section-title">{t('hikeLogTitle')}</div>
               {hikes.length > 0 && (
@@ -350,7 +298,7 @@ export default function MountainHiking({ session, onHome }) {
                 </span>
               )}
             </div>
-            <button className="btn-add" onClick={() => { setEditHike(null); setShowAdd(true) }}>
+            <button className="btn-primary" onClick={() => { setEditHike(null); setShowAdd(true) }}>
               {t('hikeAddBtn')}
             </button>
           </div>
@@ -358,10 +306,10 @@ export default function MountainHiking({ session, onHome }) {
           <div className="hike-layout">
             <div className="table-wrap" style={{ marginBottom: 0 }}>
               {sorted.length === 0 ? (
-                <div className="empty-state-rich">
-                  <div className="empty-icon">▲</div>
-                  <div className="empty-title">{t('hikeEmpty')}</div>
-                  <div className="empty-sub">{t('hikeEmptySub')}</div>
+                <div className="empty-state" style={{ padding: '3rem', textAlign: 'center' }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>▲</div>
+                  <div style={{ fontWeight: 600, marginBottom: '0.5rem' }}>{t('hikeEmpty')}</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '0.82rem', marginBottom: '1rem' }}>{t('hikeEmptySub')}</div>
                   <button className="btn-primary" onClick={() => { setEditHike(null); setShowAdd(true) }}>
                     {t('hikeAddFirst')}
                   </button>
@@ -429,7 +377,7 @@ export default function MountainHiking({ session, onHome }) {
               <Pagination total={sorted.length} page={page} onChange={setPage} />
             </div>
 
-            {/* ── Top-5 Elevation Panel ── */}
+            {/* Top-5 Elevation Panel */}
             {top5.length > 0 && (
               <div className="hike-rank-panel">
                 <div className="physical-rank-title" style={{ marginBottom: 12 }}>5 Tertinggi</div>
@@ -467,13 +415,13 @@ export default function MountainHiking({ session, onHome }) {
         <HikeModal
           hike={editHike} uid={uid}
           onClose={() => setShowAdd(false)}
-          onSaved={fetchHikes}
+          onSaved={refetchHikes}
           showToast={showToast}
         />
       )}
 
       {toast && <Toast key={toast.key} message={toast.message} type={toast.type} onDone={() => setToast(null)} />}
-    </div>
+    </>
   )
 }
 
@@ -594,8 +542,8 @@ function HikeModal({ hike, uid, onClose, onSaved, showToast }) {
           {err && <div className="modal-error">{err}</div>}
         </div>
         <div className="modal-footer">
-          <button className="btn-cancel" onClick={onClose}>{t('cancel')}</button>
-          <button className="btn-save" onClick={save} disabled={saving}>{saving ? t('saving') : t('save')}</button>
+          <button className="btn-secondary" onClick={onClose}>{t('cancel')}</button>
+          <button className="btn-primary" onClick={save} disabled={saving}>{saving ? t('saving') : t('save')}</button>
         </div>
       </div>
     </div>

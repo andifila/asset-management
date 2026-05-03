@@ -1,425 +1,427 @@
-// src/pages/Home.jsx
-import { useState, useEffect, useMemo } from 'react'
-import { supabase } from '../lib/supabase'
+import { useState } from 'react'
+import { motion } from 'framer-motion'
+import {
+  TrendingUp, Wrench, Map, Mountain, Heart,
+  ArrowUpRight, Wallet, ChevronRight,
+} from 'lucide-react'
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
+import { AreaChart, Area } from 'recharts'
 import { fmt } from '../lib/format'
 import { useLang } from '../lib/LangContext'
+import { useHomeStats } from '../hooks/useHomeStats'
 
-const MODULES = [
-  { id: 'asset',     icon: '◈', titleKey: 'homeModAssetTitle', descKey: 'homeModAssetDesc', color: 'var(--blue)',   available: true, hero: true,  primary: true  },
-  { id: 'service',   icon: '⚙', titleKey: 'homeModSvcTitle',   descKey: 'homeModSvcDesc',   color: 'var(--amber)',  available: true, hero: false, primary: true  },
-  { id: 'itinerary', icon: '✈', titleKey: 'homeModItinTitle',  descKey: 'homeModItinDesc',  color: 'var(--green)', available: true, hero: false, primary: false },
-  { id: 'hiking',    icon: '▲', titleKey: 'homeModHikeTitle',  descKey: 'homeModHikeDesc',  color: 'var(--purple)',available: true, hero: false, primary: false },
-  { id: 'wedding',   icon: '💒',titleKey: 'homeModWpTitle',    descKey: 'homeModWpDesc',    color: '#c084fc',      available: true, hero: false, primary: false },
-]
-
-const fmtDate = (d, lang) =>
-  d ? new Date(d).toLocaleDateString(lang === 'en' ? 'en-US' : 'id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : null
-
+/* ─── helpers ────────────────────────────────────────── */
 const daysSince = d => d ? Math.floor((Date.now() - new Date(d)) / 86400000) : null
 
-const relTime = (d, lang) => {
-  const n = daysSince(d)
-  if (n === null) return null
-  if (lang === 'en') {
-    if (n === 0) return 'today'
-    if (n === 1) return 'yesterday'
-    if (n < 30)  return `${n} days ago`
-    if (n < 365) return `${Math.floor(n / 30)} months ago`
-    return `${Math.floor(n / 365)} years ago`
-  }
-  if (n === 0) return 'hari ini'
-  if (n === 1) return 'kemarin'
-  if (n < 30)  return `${n} hari lalu`
-  if (n < 365) return `${Math.floor(n / 30)} bulan lalu`
-  return `${Math.floor(n / 365)} tahun lalu`
-}
-
-const getGreeting = (lang) => {
-  const h = new Date().getHours()
-  if (lang === 'en') {
-    if (h < 5 || h >= 19) return 'Good evening'
-    if (h < 11) return 'Good morning'
-    return 'Good afternoon'
-  }
-  if (h < 5)  return 'Selamat malam'
-  if (h < 11) return 'Selamat pagi'
-  if (h < 15) return 'Selamat siang'
-  if (h < 19) return 'Selamat sore'
-  return 'Selamat malam'
-}
-
-const getSubtitle = (lang) => {
-  const h = new Date().getHours()
-  if (lang === 'en') {
-    if (h < 5)  return 'Still up? Take care of your health!'
-    if (h < 11) return 'Good morning, ready to manage your day?'
-    if (h < 15) return 'Stay productive this afternoon!'
-    if (h < 19) return 'Good afternoon, check your activity updates.'
-    return 'Any updates to log tonight?'
-  }
-  if (h < 5)  return 'Masih terjaga? Jaga kesehatan ya!'
-  if (h < 11) return 'Semangat pagi, siap kelola aktivitasmu hari ini?'
-  if (h < 15) return 'Tetap produktif siang ini!'
-  if (h < 19) return 'Sore yang baik, cek update aktivitasmu yuk.'
-  return 'Malam ini, ada yang perlu dicatat?'
-}
-
-const todayStr = (lang) => new Date().toLocaleDateString(lang === 'en' ? 'en-US' : 'id-ID', {
-  weekday: 'long', day: 'numeric', month: 'long',
-})
-
-const EyeOpen = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-    <circle cx="12" cy="12" r="3"/>
-  </svg>
-)
-
-const EyeOff = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-    <line x1="1" y1="1" x2="23" y2="23"/>
-  </svg>
-)
-
-const ArrowRight = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-    strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="5" y1="12" x2="19" y2="12"/>
-    <polyline points="12 5 19 12 12 19"/>
-  </svg>
-)
-
-const WarnIcon = () => (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-    strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-    <line x1="12" y1="9" x2="12" y2="13"/>
-    <line x1="12" y1="17" x2="12.01" y2="17"/>
-  </svg>
-)
-
-const CheckIcon = () => (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-    strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="20 6 9 17 4 12"/>
-  </svg>
-)
-
-export default function Home({ session, onModule }) {
-  const { lang, toggle: toggleLang, t } = useLang()
-  const [assetTotal,  setAssetTotal]  = useState(null)
-  const [showAssets,  setShowAssets]  = useState(() => localStorage.getItem('showAssets') !== 'false')
-  const [lastService, setLastService] = useState(null)
-  const [lastTrip,    setLastTrip]    = useState(null)
-  const [tripCount,   setTripCount]   = useState(null)
-  const [lastHike,    setLastHike]    = useState(null)
-  const [hikeCount,   setHikeCount]   = useState(null)
-
-  const uid    = session.user.id
-  const name   = session.user.user_metadata?.full_name?.split(' ')[0] || 'Kamu'
-  const avatar = session.user.user_metadata?.avatar_url
-
-  const toggleAssets = () => {
-    setShowAssets(prev => {
-      localStorage.setItem('showAssets', !prev)
-      return !prev
-    })
-  }
-
+function useCountUp(target, duration = 1000) {
+  const [val, setVal] = useState(0)
   useEffect(() => {
-    const fetchAll = async () => {
-      const [bibit, binance, fisik, kas, jht, svc, trip, tripCnt, hike, hikeCnt] = await Promise.all([
-        supabase.from('bibit_assets').select('aktual').eq('user_id', uid),
-        supabase.from('binance_assets').select('aktual').eq('user_id', uid),
-        supabase.from('physical_assets').select('buy_price').eq('user_id', uid),
-        supabase.from('liquid_assets').select('jumlah').eq('user_id', uid),
-        supabase.from('jht_assets').select('jumlah').eq('user_id', uid).maybeSingle(),
-        supabase.from('service_records')
-          .select('service_date, service_type, shop')
-          .eq('user_id', uid)
-          .order('service_date', { ascending: false })
-          .limit(1).maybeSingle(),
-        supabase.from('trips')
-          .select('destination, end_date')
-          .eq('user_id', uid).eq('status', 'done')
-          .order('end_date', { ascending: false })
-          .limit(1).maybeSingle(),
-        supabase.from('trips')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', uid).eq('status', 'done'),
-        supabase.from('hikes')
-          .select('mountain, start_date, elevation')
-          .eq('user_id', uid)
-          .order('start_date', { ascending: false })
-          .limit(1).maybeSingle(),
-        supabase.from('hikes')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', uid),
-      ])
-
-      const sum = (rows, key) => (rows.data || []).reduce((s, r) => s + Number(r[key] || 0), 0)
-      setAssetTotal(
-        sum(bibit, 'aktual') + sum(binance, 'aktual') +
-        sum(fisik, 'buy_price') + sum(kas, 'jumlah') + Number(jht.data?.jumlah || 0)
-      )
-      setLastService(svc.data || null)
-      setLastTrip(trip.data || null)
-      setTripCount(tripCnt.count ?? null)
-      setLastHike(hike.data || null)
-      setHikeCount(hikeCnt.count ?? null)
+    if (!target) { setVal(0); return }
+    const start = performance.now()
+    const tick = ts => {
+      const p = Math.min((ts - start) / duration, 1)
+      setVal(Math.round(target * (1 - Math.pow(1 - p, 3))))
+      if (p < 1) requestAnimationFrame(tick)
     }
-    fetchAll()
-  }, [uid])
+    requestAnimationFrame(tick)
+  }, [target, duration])
+  return val
+}
 
-  const logout = () => supabase.auth.signOut()
+function genSpark(seed, n = 10, trend = 0.02) {
+  let v = 40
+  return Array.from({ length: n }, (_, i) => {
+    const r = ((seed * 9301 + i * 49297 + 233280) % 233280) / 233280
+    v = Math.max(10, Math.min(90, v + (r - 0.44 + trend) * 16))
+    return { v: Math.round(v) }
+  })
+}
 
-  const getModuleStat = (mod) => {
-    if (mod.id === 'asset') {
-      return {
-        label: t('homeStatTotalAset'),
-        val: assetTotal === null ? '...' : (showAssets ? fmt(assetTotal) : '••••••'),
-        extra: (
-          <button
-            className="asset-eye-btn"
-            onClick={e => { e.stopPropagation(); toggleAssets() }}
-            title={showAssets ? t('homeStatHide') : t('homeStatShow')}
-          >
-            {showAssets ? <EyeOpen /> : <EyeOff />}
-          </button>
-        ),
-      }
-    }
+/* ─── sub-components ─────────────────────────────────── */
 
-    if (mod.id === 'service') {
-      if (!lastService) return { label: t('homeStatServisLast'), val: '—', sub: null, next: null }
-      let svcLabel = lastService.service_type || '—'
-      try {
-        const items = JSON.parse(lastService.service_type)
-        if (Array.isArray(items) && items.length)
-          svcLabel = items.map(i => i.nama).filter(Boolean).join(', ')
-      } catch {}
-      const d = daysSince(lastService.service_date)
-      const daysUntil = d !== null ? 90 - d : null
-      const nextType = daysUntil === null ? 'ok'
-        : daysUntil <= 0 ? 'due'
-        : daysUntil <= 14 ? 'warn'
-        : 'ok'
-      const nextText = daysUntil === null ? null
-        : daysUntil <= 0 ? `${t('homeOverdue')} ${Math.abs(daysUntil)} ${t('homeNextDays')}`
-        : `${t('homeNextIn')} ${daysUntil} ${t('homeNextDays')}`
-      return {
-        label: t('homeStatServisLast'),
-        val: svcLabel,
-        sub: `${fmtDate(lastService.service_date, lang)} · ${relTime(lastService.service_date, lang)}`,
-        next: nextText ? { text: nextText, type: nextType } : null,
-      }
-    }
-
-    if (mod.id === 'itinerary') {
-      return {
-        label: t('homeStatPerjalanan'),
-        val: tripCount === null ? '...' : `${tripCount} trip`,
-        sub: lastTrip ? `${lang === 'en' ? 'Last' : 'Terakhir'}: ${lastTrip.destination}` : null,
-      }
-    }
-
-    if (mod.id === 'wedding') {
-      return {
-        label: t('homeStatWpBudget'),
-        val: t('homeStatWpDetail'),
-        sub: t('homeStatWpSub'),
-      }
-    }
-
-    if (mod.id === 'hiking') {
-      return {
-        label: t('homeStatTotalHike'),
-        val: hikeCount === null ? '...' : `${hikeCount} ${lang === 'en' ? 'peaks' : 'gunung'}`,
-        sub: lastHike
-          ? (lastHike.elevation
-            ? `${lastHike.mountain} · ${lastHike.elevation.toLocaleString('id-ID')} mdpl`
-            : lastHike.mountain)
-          : null,
-      }
-    }
-
-    return null
-  }
+/** Large hero card — total assets */
+function AssetHeroCard({ total, loading, onNavigate, lang }) {
+  const anim = useCountUp(total)
+  const spark = genSpark(3, 12, 0.025)
 
   return (
-    <div className="home-wrap">
-      <header className="topbar">
-        <div className="topbar-brand">
-          <span className="topbar-brand-icon">◈</span>
-          <span>MySpace</span>
-        </div>
-        <div className="topbar-right">
-          {avatar && (
-            <img src={avatar} className="avatar" alt="avatar" referrerPolicy="no-referrer" />
+    <motion.div
+      onClick={() => onNavigate('asset')}
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      whileHover={{ y: -3, transition: { duration: 0.15 } }}
+      style={{
+        background: 'linear-gradient(135deg, rgba(74,144,217,0.12) 0%, rgba(74,144,217,0.04) 100%)',
+        border: '1px solid rgba(74,144,217,0.2)',
+        borderRadius: 20,
+        padding: '1.5rem 1.75rem 1.25rem',
+        cursor: 'pointer',
+        position: 'relative',
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.25rem',
+        gridArea: 'asset',
+      }}
+    >
+      {/* glow */}
+      <div style={{ position: 'absolute', top: -60, right: -40, width: 200, height: 200, background: 'radial-gradient(circle, rgba(74,144,217,0.18) 0%, transparent 70%)', pointerEvents: 'none' }} />
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.6rem' }}>
+            <div style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(74,144,217,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <TrendingUp size={16} color="#4a90d9" />
+            </div>
+            <span style={{ fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
+              {lang === 'en' ? 'Total Portfolio' : 'Total Portofolio'}
+            </span>
+          </div>
+          {loading ? (
+            <div className="skel-line skel-h-lg" style={{ width: 220, marginBottom: 6 }} />
+          ) : (
+            <div style={{ fontSize: '2.25rem', fontWeight: 800, color: '#e8edf5', letterSpacing: '-0.03em', lineHeight: 1.1, fontFamily: 'Inter, sans-serif' }}>
+              {fmt(anim)}
+            </div>
           )}
-          <span className="topbar-name">{name}</span>
-          <button className="btn-lang" onClick={toggleLang}>
-            <span className={lang === 'id' ? 'lang-active' : ''}>ID</span>
-            <span className="lang-sep">·</span>
-            <span className={lang === 'en' ? 'lang-active' : ''}>EN</span>
-          </button>
-          <button className="btn-logout" onClick={logout}>Keluar</button>
-        </div>
-      </header>
-
-      <main className="home-main">
-        <div className="home-greeting">
-          <div className="home-greeting-text">{getGreeting(lang)}, {name}!</div>
-          <div className="home-greeting-meta">
-            <div className="home-greeting-sub">{getSubtitle(lang)}</div>
-            <div className="home-date">{todayStr(lang)}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.4rem' }}>
+            <span style={{ background: 'rgba(61,186,126,0.15)', border: '1px solid rgba(61,186,126,0.3)', color: '#3dba7e', borderRadius: 20, padding: '0.15rem 0.55rem', fontSize: '0.7rem', fontWeight: 700 }}>
+              ↑ +8% {lang === 'en' ? 'this month' : 'bulan ini'}
+            </span>
           </div>
         </div>
+        <ArrowUpRight size={16} color="rgba(74,144,217,0.6)" style={{ flexShrink: 0 }} />
+      </div>
 
-        {/* Home insight strip */}
-        {(assetTotal !== null || hikeCount !== null || tripCount !== null) && (
-          <div className="mod-insight-strip" style={{ marginBottom: '1.25rem' }}>
-            {assetTotal > 0 && (
-              <div className="mod-insight-chip mod-chip-positive">
-                <span className="mod-chip-icon">📊</span>
-                <span className="mod-chip-text">Total aset kamu hari ini: <strong>{fmt(assetTotal)}</strong></span>
-              </div>
-            )}
-            {hikeCount > 0 && (
-              <div className="mod-insight-chip mod-chip-info">
-                <span className="mod-chip-icon">🏔</span>
-                <span className="mod-chip-text">
-                  {lang === 'en'
-                    ? hikeCount >= 7
-                      ? `${hikeCount} mountains climbed — 7 Summit of Java complete!`
-                      : hikeCount >= 3
-                      ? `${hikeCount} mountains climbed — ${7 - hikeCount} more for 7 Summit of Java!`
-                      : `${hikeCount} mountains climbed. Keep exploring!`
-                    : hikeCount >= 7
-                      ? `${hikeCount} gunung didaki — kamu sudah complete 7 Summit of Java!`
-                      : hikeCount >= 3
-                      ? `${hikeCount} gunung didaki — ${7 - hikeCount} lagi untuk 7 Summit of Java!`
-                      : `${hikeCount} gunung sudah kamu daki. Terus jelajahi!`}
-                </span>
-              </div>
-            )}
-            {tripCount > 0 && (
-              <div className="mod-insight-chip mod-chip-info">
-                <span className="mod-chip-icon">✈</span>
-                <span className="mod-chip-text">
-                  {lang === 'en'
-                    ? `${tripCount} trips completed — true adventurer!`
-                    : `${tripCount} perjalanan selesai tercatat — petualang sejati!`}
-                </span>
-              </div>
-            )}
-          </div>
-        )}
+      {/* sparkline */}
+      <div style={{ marginTop: 'auto', paddingTop: '1rem', marginLeft: '-0.5rem', marginRight: '-0.5rem' }}>
+        <ResponsiveContainer width="100%" height={48}>
+          <AreaChart data={spark} margin={{ top: 2, right: 4, bottom: 0, left: 4 }}>
+            <defs>
+              <linearGradient id="ag" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%"  stopColor="#4a90d9" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#4a90d9" stopOpacity={0}   />
+              </linearGradient>
+            </defs>
+            <Area type="monotone" dataKey="v" stroke="#4a90d9" strokeWidth={2} fill="url(#ag)" dot={false} animationDuration={900} />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </motion.div>
+  )
+}
 
-        <div className="module-grid">
-          {MODULES.map(mod => {
-            const stat = getModuleStat(mod)
-            const cardClass = [
-              'module-card',
-              mod.hero    ? 'module-hero'      : '',
-              mod.available ? 'module-available' : 'module-soon',
-              mod.primary ? 'module-primary'   : 'module-secondary',
-            ].filter(Boolean).join(' ')
+/** Wedding ring / donut card */
+function WeddingRingCard({ spent, budget, loading, onNavigate, lang }) {
+  const pct    = budget > 0 ? Math.min(100, Math.round((spent / budget) * 100)) : 0
+  const remain = budget - spent
+  const animPct = useCountUp(pct, 1200)
 
-            return (
-              <div
-                key={mod.id}
-                className={cardClass}
-                onClick={() => mod.available && onModule(mod.id)}
-                style={{ '--mod-color': mod.color }}
-              >
-                <div className="module-card-accent" />
+  const donut = [
+    { v: pct,       fill: '#e05252' },
+    { v: 100 - pct, fill: 'rgba(255,255,255,0.06)' },
+  ]
 
-                {mod.hero ? (
-                  /* ── Hero card: horizontal layout ── */
-                  <div className="module-hero-body">
-                    <div className="module-hero-info">
-                      <div className="module-card-top">
-                        <div className="module-icon-wrap">
-                          <div className="module-icon" style={{ color: mod.color }}>{mod.icon}</div>
-                        </div>
-                        <span className="module-badge badge-active">
-                          <span className="badge-dot" />{t('homeBadgeActive')}
-                        </span>
-                      </div>
-                      <div className="module-title module-title-lg">{t(mod.titleKey)}</div>
-                      <div className="module-desc">{t(mod.descKey)}</div>
-                    </div>
+  return (
+    <motion.div
+      onClick={() => onNavigate('wedding')}
+      initial={{ opacity: 0, scale: 0.97 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.4, delay: 0.1 }}
+      whileHover={{ y: -3, transition: { duration: 0.15 } }}
+      style={{
+        background: 'linear-gradient(160deg, rgba(224,82,82,0.1) 0%, rgba(224,82,82,0.03) 100%)',
+        border: '1px solid rgba(224,82,82,0.18)',
+        borderRadius: 20,
+        padding: '1.5rem',
+        cursor: 'pointer',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '0.5rem',
+        gridArea: 'wedding',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start' }}>
+        <Heart size={14} color="#e05252" />
+        <span style={{ fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
+          Wedding
+        </span>
+      </div>
 
-                    <div className="module-hero-aside">
-                      {stat && (
-                        <div className="module-stat hero-stat">
-                          <div className="module-stat-header">
-                            <span className="module-stat-label">{stat.label}</span>
-                            {stat.extra}
-                          </div>
-                          <span className="module-stat-val hero-val">{stat.val}</span>
-                        </div>
-                      )}
-                      <button
-                        className="module-cta-btn hero-cta"
-                        onClick={e => { e.stopPropagation(); onModule(mod.id) }}
-                      >
-                        {t('homeCtaOpen')} <ArrowRight />
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  /* ── Secondary cards: vertical layout ── */
-                  <>
-                    <div className="module-card-top">
-                      <div className="module-icon-wrap">
-                        <div className="module-icon" style={{ color: mod.color }}>{mod.icon}</div>
-                      </div>
-                      <span className={`module-badge ${mod.available ? 'badge-active' : 'badge-soon'}`}>
-                        <span className="badge-dot" />
-                        {mod.available ? t('homeBadgeActive') : t('homeBadgeSoon')}
-                      </span>
-                    </div>
-
-                    <div className="module-title">{t(mod.titleKey)}</div>
-                    <div className="module-desc">{t(mod.descKey)}</div>
-
-                    {stat && (
-                      <div className="module-stat">
-                        <div className="module-stat-header">
-                          <span className="module-stat-label">{stat.label}</span>
-                          {stat.extra}
-                        </div>
-                        <span className="module-stat-val">{stat.val}</span>
-                        {stat.sub && <div className="module-stat-sub">{stat.sub}</div>}
-                        {stat.next && (
-                          <div className={`svc-next svc-next-${stat.next.type}`}>
-                            {stat.next.type === 'ok' ? <CheckIcon /> : <WarnIcon />}
-                            {stat.next.text}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    <button
-                      className="module-cta-btn"
-                      onClick={e => { e.stopPropagation(); mod.available && onModule(mod.id) }}
-                      disabled={!mod.available}
-                    >
-                      {mod.available ? t('homeCtaView') : t('homeCtaSoon')}
-                      {mod.available && <ArrowRight />}
-                    </button>
-                  </>
-                )}
-              </div>
-            )
-          })}
+      {/* Donut */}
+      <div style={{ position: 'relative', width: 120, height: 120, flexShrink: 0 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie data={donut} dataKey="v" innerRadius={42} outerRadius={56} startAngle={90} endAngle={-270} paddingAngle={2} strokeWidth={0} animationBegin={200} animationDuration={900}>
+              {donut.map((d, i) => <Cell key={i} fill={d.fill} />)}
+            </Pie>
+          </PieChart>
+        </ResponsiveContainer>
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <span style={{ fontSize: '1.5rem', fontWeight: 800, color: '#e05252', lineHeight: 1 }}>
+            {loading ? '—' : `${animPct}`}
+          </span>
+          <span style={{ fontSize: '0.6rem', color: 'var(--muted)', fontWeight: 600 }}>%</span>
         </div>
-      </main>
+      </div>
+
+      {/* Stats below donut */}
+      {!loading && budget > 0 && (
+        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+          {[
+            { label: lang === 'en' ? 'Budget'    : 'Budget',     val: fmt(budget),  color: 'var(--muted)' },
+            { label: lang === 'en' ? 'Spent'     : 'Terpakai',   val: fmt(spent),   color: '#e05252'      },
+            { label: lang === 'en' ? 'Remaining' : 'Sisa',       val: fmt(remain),  color: '#3dba7e'      },
+          ].map(r => (
+            <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.73rem', color: 'var(--muted)' }}>{r.label}</span>
+              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: r.color }}>{r.val}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {!loading && budget === 0 && (
+        <p style={{ fontSize: '0.75rem', color: 'var(--muted)', textAlign: 'center', lineHeight: 1.6 }}>
+          {lang === 'en' ? 'Set your budget →' : 'Set budget →'}
+        </p>
+      )}
+    </motion.div>
+  )
+}
+
+/** Compact stat tile */
+function MiniTile({ icon: Icon, color, bg, label, value, sub, onClick, delay = 0 }) {
+  return (
+    <motion.div
+      onClick={onClick}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, delay }}
+      whileHover={{ y: -2, transition: { duration: 0.13 } }}
+      style={{
+        background: 'var(--bg2)',
+        border: '1px solid var(--border)',
+        borderRadius: 16,
+        padding: '1rem 1.1rem',
+        cursor: 'pointer',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.35rem',
+        transition: 'border-color 0.15s',
+      }}
+      onHoverStart={e => e.target.style?.borderColor}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+        <div style={{ width: 30, height: 30, borderRadius: 9, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Icon size={14} color={color} />
+        </div>
+        <ArrowUpRight size={12} color="var(--border2)" />
+      </div>
+      <div style={{ fontSize: '0.65rem', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600 }}>
+        {label}
+      </div>
+      <div style={{ fontSize: '1.3rem', fontWeight: 800, color, lineHeight: 1 }}>
+        {value}
+      </div>
+      <div style={{ fontSize: '0.68rem', color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        {sub}
+      </div>
+    </motion.div>
+  )
+}
+
+/** Monthly spending tile */
+function SpendTile({ amount, loading, lang, delay = 0 }) {
+  const anim = useCountUp(amount, 900)
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, delay }}
+      style={{
+        background: 'var(--bg2)',
+        border: '1px solid var(--border)',
+        borderRadius: 16,
+        padding: '1rem 1.1rem',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.35rem',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+        <div style={{ width: 30, height: 30, borderRadius: 9, background: 'rgba(61,186,126,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Wallet size={14} color="#3dba7e" />
+        </div>
+      </div>
+      <div style={{ fontSize: '0.65rem', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600 }}>
+        {lang === 'en' ? 'This Month' : 'Bulan Ini'}
+      </div>
+      <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#3dba7e', lineHeight: 1 }}>
+        {loading ? '—' : (amount > 0 ? fmt(anim) : '—')}
+      </div>
+      <div style={{ fontSize: '0.68rem', color: 'var(--muted)' }}>
+        {lang === 'en' ? 'service + wedding' : 'servis + wedding'}
+      </div>
+    </motion.div>
+  )
+}
+
+/** Bottom module navigation strip */
+const NAV_ITEMS = [
+  { id: 'asset',     icon: TrendingUp, color: '#4a90d9', bg: 'rgba(74,144,217,0.12)',   labelId: 'Asset',    labelEn: 'Assets'   },
+  { id: 'service',   icon: Wrench,     color: '#e9a229', bg: 'rgba(233,162,41,0.12)',  labelId: 'Servis',   labelEn: 'Service'  },
+  { id: 'itinerary', icon: Map,        color: '#3dba7e', bg: 'rgba(61,186,126,0.12)',  labelId: 'Itinerary',labelEn: 'Itinerary'},
+  { id: 'hiking',    icon: Mountain,   color: '#a78bfa', bg: 'rgba(167,139,250,0.12)', labelId: 'Hiking',   labelEn: 'Hiking'   },
+  { id: 'wedding',   icon: Heart,      color: '#e05252', bg: 'rgba(224,82,82,0.12)',   labelId: 'Wedding',  labelEn: 'Wedding'  },
+]
+
+function ModuleStrip({ onNavigate, lang }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, delay: 0.4 }}
+      style={{
+        background: 'var(--bg2)',
+        border: '1px solid var(--border)',
+        borderRadius: 16,
+        padding: '0.75rem 1rem',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.5rem',
+      }}
+    >
+      <span style={{ fontSize: '0.65rem', color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginRight: '0.25rem', flexShrink: 0 }}>
+        {lang === 'en' ? 'Go to' : 'Buka'}
+      </span>
+      {NAV_ITEMS.map(item => {
+        const Icon = item.icon
+        return (
+          <motion.button
+            key={item.id}
+            onClick={() => onNavigate(item.id)}
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.97 }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.4rem',
+              padding: '0.35rem 0.75rem',
+              background: item.bg,
+              border: `1px solid ${item.color}28`,
+              borderRadius: 20,
+              cursor: 'pointer',
+              color: item.color,
+              fontSize: '0.78rem',
+              fontWeight: 600,
+              whiteSpace: 'nowrap',
+              transition: 'opacity 0.12s',
+            }}
+          >
+            <Icon size={12} />
+            {lang === 'en' ? item.labelEn : item.labelId}
+          </motion.button>
+        )
+      })}
+      <ChevronRight size={13} color="var(--muted)" style={{ marginLeft: 'auto', flexShrink: 0 }} />
+    </motion.div>
+  )
+}
+
+/* ─── Main ─────────────────────────────────────────────── */
+export default function Home({ session, onNavigate }) {
+  const { lang } = useLang()
+  const uid = session.user.id
+
+  const { data: stats, isLoading: loading } = useHomeStats(uid)
+  const { assetTotal = 0, lastService = null, tripCount = 0, hikeCount = 0, wpSpent = 0, wpBudget = 0, monthlySpend = 0 } = stats || {}
+
+  const getSvcLabel = () => {
+    if (!lastService) return lang === 'en' ? 'No data' : 'Belum ada'
+    try {
+      const items = JSON.parse(lastService.service_type)
+      if (Array.isArray(items)) {
+        const first = items[0]?.nama || '—'
+        return items.length > 1 ? `${first} +${items.length - 1}` : first
+      }
+    } catch {}
+    return lastService.service_type || '—'
+  }
+
+  const svcDays = daysSince(lastService?.service_date)
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+
+      {/* ── Bento grid ── */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr 1fr 200px',
+        gridTemplateRows: 'auto auto',
+        gridTemplateAreas: `
+          "asset  asset  asset  wedding"
+          "svc    trips  hike   wedding"
+        `,
+        gap: '0.875rem',
+      }}>
+
+        {/* Asset hero */}
+        <AssetHeroCard total={assetTotal} loading={loading} onNavigate={onNavigate} lang={lang} />
+
+        {/* Wedding ring */}
+        <WeddingRingCard spent={wpSpent} budget={wpBudget} loading={loading} onNavigate={onNavigate} lang={lang} />
+
+        {/* Service */}
+        <div style={{ gridArea: 'svc' }}>
+          <MiniTile
+            icon={Wrench}
+            color="#e9a229"
+            bg="rgba(233,162,41,0.12)"
+            label={lang === 'en' ? 'Last Service' : 'Servis Terakhir'}
+            value={loading ? '—' : getSvcLabel()}
+            sub={loading ? '—' : (svcDays !== null ? (lang === 'en' ? `${svcDays}d ago` : `${svcDays} hari lalu`) : (lang === 'en' ? 'No record' : 'Belum ada'))}
+            onClick={() => onNavigate('service')}
+            delay={0.2}
+          />
+        </div>
+
+        {/* Trips */}
+        <div style={{ gridArea: 'trips' }}>
+          <MiniTile
+            icon={Map}
+            color="#3dba7e"
+            bg="rgba(61,186,126,0.12)"
+            label={lang === 'en' ? 'Trips Done' : 'Trip Selesai'}
+            value={loading ? '—' : `${tripCount}`}
+            sub={lang === 'en' ? 'trips completed' : 'perjalanan'}
+            onClick={() => onNavigate('itinerary')}
+            delay={0.25}
+          />
+        </div>
+
+        {/* Hike */}
+        <div style={{ gridArea: 'hike' }}>
+          <MiniTile
+            icon={Mountain}
+            color="#a78bfa"
+            bg="rgba(167,139,250,0.12)"
+            label={lang === 'en' ? 'Mountains' : 'Gunung Didaki'}
+            value={loading ? '—' : `${hikeCount}`}
+            sub={lang === 'en' ? 'peaks climbed' : 'puncak'}
+            onClick={() => onNavigate('hiking')}
+            delay={0.3}
+          />
+        </div>
+      </div>
+
+      {/* ── Monthly spending + module strip ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: '0.875rem', alignItems: 'stretch' }}>
+        <SpendTile amount={monthlySpend} loading={loading} lang={lang} delay={0.35} />
+        <ModuleStrip onNavigate={onNavigate} lang={lang} />
+      </div>
+
     </div>
   )
 }

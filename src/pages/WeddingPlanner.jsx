@@ -1,10 +1,11 @@
 // src/pages/WeddingPlanner.jsx
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { fmt } from '../lib/format'
 import Toast from '../components/Toast'
 import Pagination, { paginate } from '../components/Pagination'
 import { useLang } from '../lib/LangContext'
+import { useWeddingData, useInvalidateWedding } from '../hooks/useWedding'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const CAT_COLORS = {
@@ -170,8 +171,8 @@ function GlobalBudgetModal({ uid, currentBudget, onClose, onSaved, showToast }) 
           {err && <div className="modal-error" style={{ marginTop: '0.6rem' }}>{err}</div>}
         </div>
         <div className="modal-footer">
-          <button className="btn-cancel" onClick={onClose}>{t('cancel')}</button>
-          <button className="btn-save" onClick={save} disabled={saving}>
+          <button className="btn-secondary" onClick={onClose}>{t('cancel')}</button>
+          <button className="btn-primary" onClick={save} disabled={saving}>
             {saving ? t('saving') : t('save')}
           </button>
         </div>
@@ -218,13 +219,11 @@ function SetupModal({ uid, items, onClose, onSaved, showToast }) {
     setSaving(true); setErr('')
 
     try {
-      // Delete marked rows
       for (const row of rows.filter(r => r.deleted && r.id)) {
         await supabase.from('wedding_transactions').delete().eq('budget_item_id', row.id).eq('user_id', uid)
         await supabase.from('wedding_budget_items').delete().eq('id', row.id).eq('user_id', uid)
       }
 
-      // Insert new rows
       const toInsert = activeRows.filter(r => !r.id && r.category.trim()).map(r => ({
         user_id:    uid,
         category:   r.category.trim(),
@@ -236,7 +235,6 @@ function SetupModal({ uid, items, onClose, onSaved, showToast }) {
         if (error) { setErr(error.message); setSaving(false); return }
       }
 
-      // Update existing rows
       const errs = await Promise.all(
         activeRows.filter(r => r.id).map(r =>
           supabase.from('wedding_budget_items')
@@ -271,7 +269,6 @@ function SetupModal({ uid, items, onClose, onSaved, showToast }) {
 
         <div className="modal-body" style={{ overflowY: 'auto', flex: 1 }}>
 
-          {/* ── Category list header ── */}
           <div style={{ display: 'flex', gap: 8, paddingBottom: '0.4rem', marginBottom: '0.4rem', borderBottom: '1px solid var(--border)' }}>
             <div style={{ flex: 1, fontSize: '0.67rem', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               {t('wpCategory')}
@@ -282,7 +279,6 @@ function SetupModal({ uid, items, onClose, onSaved, showToast }) {
             <div style={{ width: 28 }} />
           </div>
 
-          {/* ── Category rows ── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.38rem' }}>
             {rows.map((r, i) => (
               <div key={i} style={{
@@ -325,12 +321,10 @@ function SetupModal({ uid, items, onClose, onSaved, showToast }) {
             ))}
           </div>
 
-          {/* ── Add row ── */}
-          <button className="vp-add-btn" style={{ marginTop: '0.65rem' }} onClick={addRow}>
+          <button className="btn-secondary" style={{ marginTop: '0.65rem', width: '100%' }} onClick={addRow}>
             + Tambah Kategori
           </button>
 
-          {/* ── Pending deletes warning ── */}
           {deletedCount > 0 && (
             <div style={{
               fontSize: '0.73rem', color: 'var(--red)', marginTop: '0.6rem',
@@ -345,8 +339,8 @@ function SetupModal({ uid, items, onClose, onSaved, showToast }) {
         </div>
 
         <div className="modal-footer">
-          <button className="btn-cancel" onClick={onClose}>{t('cancel')}</button>
-          <button className="btn-save" onClick={save} disabled={saving}>
+          <button className="btn-secondary" onClick={onClose}>{t('cancel')}</button>
+          <button className="btn-primary" onClick={save} disabled={saving}>
             {saving ? t('saving') : t('save')}
           </button>
         </div>
@@ -451,14 +445,14 @@ function VendorPickerModal({ category, uid, vendors, currentVendorId, onConfirm,
               </div>
               {addErr && <div className="modal-error" style={{ marginTop: '0.4rem', fontSize: '0.78rem' }}>{addErr}</div>}
               <div style={{ display: 'flex', gap: 8, marginTop: '0.6rem', justifyContent: 'flex-end' }}>
-                <button className="btn-cancel" style={{ padding: '0.3rem 0.7rem', fontSize: '0.78rem' }}
+                <button className="btn-secondary" style={{ padding: '0.3rem 0.7rem', fontSize: '0.78rem' }}
                   onClick={() => { setAddingNew(false); setAddErr('') }}>{t('cancel')}</button>
-                <button className="btn-save" style={{ padding: '0.3rem 0.7rem', fontSize: '0.78rem' }}
+                <button className="btn-primary" style={{ padding: '0.3rem 0.7rem', fontSize: '0.78rem' }}
                   onClick={handleSaveNew} disabled={addSaving}>{addSaving ? '...' : t('add')}</button>
               </div>
             </div>
           ) : (
-            <button className="vp-add-btn" onClick={() => setAddingNew(true)}>{t('wpAddNewVendor')}</button>
+            <button className="btn-secondary" style={{ width: '100%', marginTop: '0.5rem' }} onClick={() => setAddingNew(true)}>{t('wpAddNewVendor')}</button>
           )}
         </div>
 
@@ -474,8 +468,8 @@ function VendorPickerModal({ category, uid, vendors, currentVendorId, onConfirm,
               )}
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button className="btn-cancel" onClick={() => setConfirmStage(false)}>{t('wpBack')}</button>
-              <button className="btn-save" onClick={handleFinalConfirm} disabled={saving}>
+              <button className="btn-secondary" onClick={() => setConfirmStage(false)}>{t('wpBack')}</button>
+              <button className="btn-primary" onClick={handleFinalConfirm} disabled={saving}>
                 {saving ? '...' : t('wpConfirmVendor')}
               </button>
             </div>
@@ -484,8 +478,8 @@ function VendorPickerModal({ category, uid, vendors, currentVendorId, onConfirm,
 
         {!confirmStage && (
           <div className="modal-footer">
-            <button className="btn-cancel" onClick={onClose}>{t('cancel')}</button>
-            <button className="btn-save" disabled={!selectedId || addingNew} onClick={() => setConfirmStage(true)}>
+            <button className="btn-secondary" onClick={onClose}>{t('cancel')}</button>
+            <button className="btn-primary" disabled={!selectedId || addingNew} onClick={() => setConfirmStage(true)}>
               {t('wpSelectVendorBtn')}
             </button>
           </div>
@@ -565,8 +559,8 @@ function AddTxModal({ tx, uid, items, defaultItemId, onClose, onSaved, showToast
           {err && <div className="modal-error">{err}</div>}
         </div>
         <div className="modal-footer">
-          <button className="btn-cancel" onClick={onClose}>{t('cancel')}</button>
-          <button className="btn-save" onClick={save} disabled={saving}>
+          <button className="btn-secondary" onClick={onClose}>{t('cancel')}</button>
+          <button className="btn-primary" onClick={save} disabled={saving}>
             {saving ? t('saving') : t('save')}
           </button>
         </div>
@@ -576,14 +570,9 @@ function AddTxModal({ tx, uid, items, defaultItemId, onClose, onSaved, showToast
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
-export default function WeddingPlanner({ session, onHome }) {
-  const { t, lang, toggle: toggleLang } = useLang()
+export default function WeddingPlanner({ session }) {
+  const { t } = useLang()
 
-  const [items,            setItems]            = useState([])
-  const [transactions,     setTransactions]     = useState([])
-  const [vendors,          setVendors]          = useState([])
-  const [settings,         setSettings]         = useState(null)
-  const [loading,          setLoading]          = useState(true)
   const [selectedId,       setSelectedId]       = useState(null)
   const [showSetup,        setShowSetup]        = useState(false)
   const [showBudgetModal,  setShowBudgetModal]  = useState(false)
@@ -599,28 +588,15 @@ export default function WeddingPlanner({ session, onHome }) {
   const uid  = session.user.id
   const name = session.user.user_metadata?.full_name?.split(' ')[0] || 'Kamu'
 
-  const showToast = useCallback((msg, type = 'success') => {
+  const { data: weddingData, isLoading: loading, refetch: fetchAll } = useWeddingData(uid)
+  const { items = [], transactions = [], vendors = [], settings = { total_budget: 0 } } = weddingData || {}
+  const invalidateWedding = useInvalidateWedding(uid)
+
+  const showToast = (msg, type = 'success') => {
     toastKey.current += 1
     setToast({ message: msg, type, key: toastKey.current })
-  }, [])
+  }
 
-  const fetchAll = useCallback(async () => {
-    const [itemsRes, txRes, vendorsRes, settingsRes] = await Promise.all([
-      supabase.from('wedding_budget_items').select('*').eq('user_id', uid).order('created_at'),
-      supabase.from('wedding_transactions').select('*').eq('user_id', uid).order('date', { ascending: false }),
-      supabase.from('wedding_vendors').select('*').eq('user_id', uid).order('name'),
-      supabase.from('wedding_settings').select('*').eq('user_id', uid).maybeSingle(),
-    ])
-    setItems(itemsRes.data || [])
-    setTransactions(txRes.data || [])
-    setVendors(vendorsRes.data || [])
-    setSettings(settingsRes.data || { total_budget: 0 })
-    setLoading(false)
-  }, [uid])
-
-  useEffect(() => { fetchAll() }, [fetchAll])
-
-  // ── Vendor handlers ──────────────────────────────────────────────────────
   const openVendorPicker = item => { setPickerItem(item); setShowVendorPicker(true) }
 
   const handleVendorConfirm = async vendor => {
@@ -630,14 +606,13 @@ export default function WeddingPlanner({ session, onHome }) {
       .eq('id', pickerItem.id).eq('user_id', uid)
     if (error) { showToast(error.message, 'error'); return }
     showToast(`"${vendor.name}" ${t('wpVendorPicked')}`)
-    fetchAll()
+    invalidateWedding()
   }
 
   const handleVendorAdded = newVendor => {
-    setVendors(prev => [...prev, newVendor].sort((a, b) => a.name.localeCompare(b.name)))
+    invalidateWedding()
   }
 
-  // ── Computed ────────────────────────────────────────────────────────────
   const itemsWithStats = useMemo(() => items.map(it => {
     const txs    = transactions.filter(t => t.budget_item_id === it.id)
     const actual = txs.reduce((s, t) => s + Number(t.amount || 0), 0)
@@ -688,56 +663,33 @@ export default function WeddingPlanner({ session, onHome }) {
     const { error } = await supabase.from('wedding_budget_items').delete().eq('id', id).eq('user_id', uid)
     if (error) { showToast(error.message, 'error'); return }
     if (selectedId === id) setSelectedId(null)
-    showToast(t('wpCatDeleted')); fetchAll()
+    showToast(t('wpCatDeleted')); invalidateWedding()
   }
 
   const handleDeleteTx = async id => {
     if (!confirm(t('wpConfirmDeleteTx'))) return
     const { error } = await supabase.from('wedding_transactions').delete().eq('id', id).eq('user_id', uid)
     if (error) { showToast(error.message, 'error'); return }
-    showToast(t('wpPayDeleted')); fetchAll()
+    showToast(t('wpPayDeleted')); invalidateWedding()
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="app">
-      <header className="topbar">
-        <div className="topbar-brand">
-          <span style={{ color: 'var(--purple)', fontSize: '1.1rem' }}>💒</span>
-          <span>{t('wpTitle')}</span>
-        </div>
-        <div className="topbar-right">
-          {!isEmpty && (
-            <button className="asset-btn-primary" onClick={() => openAddTx(null)}
-              style={{ padding: '0.38rem 0.875rem', fontSize: '0.78rem' }}>
-              {t('wpAddPayment')}
-            </button>
-          )}
-          <button className="btn-lang" onClick={toggleLang}>
-            <span className={lang === 'id' ? 'lang-active' : ''}>ID</span>
-            <span className="lang-sep">·</span>
-            <span className={lang === 'en' ? 'lang-active' : ''}>EN</span>
-          </button>
-          <button className="btn-home" onClick={onHome}>← Home</button>
-        </div>
-      </header>
-
+    <>
       {loading ? <WeddingSkeleton /> : isEmpty ? (
         <main className="main-content">
-          <div className="asset-empty">
-            <div className="asset-empty-glow" />
-            <div className="asset-empty-icon">💒</div>
-            <div className="asset-empty-title">{t('wpEmptyTitle')}</div>
-            <div className="asset-empty-sub">{t('wpEmptySub')}</div>
-            <button className="asset-btn-primary"
+          <div className="empty-state" style={{ padding: '3rem', textAlign: 'center' }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>💒</div>
+            <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '0.5rem' }}>{t('wpEmptyTitle')}</div>
+            <div style={{ color: 'var(--muted)', fontSize: '0.82rem', marginBottom: '1.5rem' }}>{t('wpEmptySub')}</div>
+            <button className="btn-primary"
               style={{ padding: '0.6rem 1.5rem', fontSize: '0.88rem' }}
               onClick={() => setShowSetup(true)}>
               {t('wpSetupAllBtn')}
             </button>
-            <div className="asset-empty-cats" style={{ marginTop: '1.5rem' }}>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: '1.5rem', flexWrap: 'wrap' }}>
               {[['💒','Gedung','var(--blue)'],['🍽','Catering','var(--amber)'],['💍','Cincin','#f0c040'],['📸','Foto','#e05252']].map(([ic, lb, cl]) => (
-                <div key={lb} className="asset-empty-cat">
-                  <span style={{ color: cl }}>{ic}</span><span>{lb}</span>
+                <div key={lb} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0.4rem 0.8rem', borderRadius: 8, background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+                  <span style={{ color: cl }}>{ic}</span><span style={{ fontSize: '0.8rem' }}>{lb}</span>
                 </div>
               ))}
             </div>
@@ -745,8 +697,7 @@ export default function WeddingPlanner({ session, onHome }) {
         </main>
       ) : (
         <main className="main-content">
-
-          {/* ── HERO ── */}
+          {/* HERO */}
           <div className="wp-hero-card">
             <div className="wp-hero-left">
               <div className="wp-hero-eyebrow">💒 {t('wpTitle')} — {name}</div>
@@ -795,53 +746,53 @@ export default function WeddingPlanner({ session, onHome }) {
             </div>
           </div>
 
-          {/* ── STAT CARDS ── */}
-          <div className="mod-stat-row">
+          {/* STAT CARDS */}
+          <div className="stat-grid">
             {[
               { label: t('wpTotalBudget'), val: fmt(effectiveBudget), sub: globalBudget ? t('wpGlobalBudget') : `${items.length} kategori`, color: 'var(--blue)' },
               { label: t('wpEstimate'),    val: totalEstimate > 0 ? fmt(totalEstimate) : '—', sub: t('wpEstimate').toLowerCase(), color: 'var(--purple)' },
               { label: t('wpTotalPaid'),   val: fmt(totalSpent), sub: `${progress.toFixed(1)}${t('wpProgress')}`, color: 'var(--amber)' },
               { label: t('wpRemaining'),   val: fmt(totalRemaining), sub: totalRemaining >= 0 ? t('wpRemainSub') : 'over!', color: totalRemaining >= 0 ? 'var(--green)' : 'var(--red)' },
             ].map((c, i) => (
-              <div key={i} className="mod-stat-card">
-                <div className="mod-stat-label">{c.label}</div>
-                <div className="mod-stat-val" style={{ color: c.color }}>{c.val}</div>
-                <div className="mod-stat-sub">{c.sub}</div>
+              <div key={i} className="stat-card">
+                <div className="stat-card-label">{c.label}</div>
+                <div className="stat-card-value" style={{ color: c.color }}>{c.val}</div>
+                <div className="stat-card-sub">{c.sub}</div>
               </div>
             ))}
           </div>
 
-          {/* ── INSIGHTS ── */}
+          {/* INSIGHTS */}
           {insights.length > 0 && (
-            <div className="mod-insight-strip">
+            <div className="insight-strip">
               {insights.map((ins, i) => (
-                <div key={i} className={`mod-insight-chip mod-chip-${ins.type}`}>
-                  <span className="mod-chip-icon">{ins.icon}</span>
-                  <span className="mod-chip-text">{ins.text}</span>
+                <div key={i} className={`insight-chip chip-${ins.type}`}>
+                  <span className="chip-icon">{ins.icon}</span>
+                  <span className="chip-text">{ins.text}</span>
                 </div>
               ))}
             </div>
           )}
 
-          {/* ── ACTION BAR ── */}
-          <div className="wp-action-bar">
+          {/* ACTION BAR */}
+          <div className="action-bar">
             <div>
-              <div className="wp-action-title">{t('wpBudgetCat')}</div>
-              <div className="wp-action-sub">
+              <div className="section-title">{t('wpBudgetCat')}</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--muted)', marginTop: 2 }}>
                 {items.length} {t('wpCategory').toLowerCase()} · {transactions.length} {t('wpTransactions')} · {vendors.length} {t('wpVendorsReg')}
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button className="asset-btn-secondary" onClick={() => setShowSetup(true)}>
+              <button className="btn-secondary" onClick={() => setShowSetup(true)}>
                 {t('wpSetupAll')}
               </button>
-              <button className="asset-btn-primary" onClick={() => openAddTx(null)}>
+              <button className="btn-primary" onClick={() => openAddTx(null)}>
                 {t('wpAddPayment')}
               </button>
             </div>
           </div>
 
-          {/* ── LAYOUT ── */}
+          {/* LAYOUT */}
           <div className="wp-layout">
             <div className="wp-table-section">
               <div className="table-wrap" style={{ marginBottom: 0 }}>
@@ -931,7 +882,7 @@ export default function WeddingPlanner({ session, onHome }) {
               </div>
             </div>
 
-            {/* ── DETAIL PANEL ── */}
+            {/* DETAIL PANEL */}
             {selectedItem && (
               <div className="wp-detail-panel">
                 <div className="wp-detail-head">
@@ -966,7 +917,7 @@ export default function WeddingPlanner({ session, onHome }) {
                       <div style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>{t('wpNoVendor')}</div>
                     )}
                   </div>
-                  <button className="asset-btn-secondary"
+                  <button className="btn-secondary"
                     style={{ padding: '0.25rem 0.65rem', fontSize: '0.72rem', flexShrink: 0 }}
                     onClick={() => openVendorPicker(selectedItem)}>
                     {selectedItem.vendor_id ? t('wpChangeVendor') : t('wpPickVendor')} Vendor
@@ -983,7 +934,7 @@ export default function WeddingPlanner({ session, onHome }) {
                       color: selectedItem.actual === 0 ? 'var(--muted)' : selectedItem.diff >= 0 ? 'var(--green)' : 'var(--red)' },
                   ].map((s, i) => (
                     <div key={i} className="wp-detail-stat">
-                      <div className="mod-stat-label">{s.label}</div>
+                      <div className="stat-card-label">{s.label}</div>
                       <div style={{ fontFamily: "'DM Mono',monospace", fontWeight: 700, color: s.color, fontSize: '0.88rem' }}>{s.val}</div>
                     </div>
                   ))}
@@ -1001,8 +952,8 @@ export default function WeddingPlanner({ session, onHome }) {
                 )}
 
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                  <div className="asset-section-title">{t('wpPayHistory')}</div>
-                  <button className="asset-btn-primary"
+                  <div className="section-title">{t('wpPayHistory')}</div>
+                  <button className="btn-primary"
                     style={{ padding: '0.28rem 0.7rem', fontSize: '0.72rem' }}
                     onClick={() => openAddTx(selectedItem.id)}>
                     {t('wpAddPay')}
@@ -1044,10 +995,10 @@ export default function WeddingPlanner({ session, onHome }) {
               </div>
             )}
 
-            {/* ── ACTIVITY PANEL ── */}
+            {/* ACTIVITY PANEL */}
             {!selectedItem && recentActivity.length > 0 && (
               <div className="wp-activity-panel">
-                <div className="asset-section-title" style={{ marginBottom: '1rem' }}>{t('wpRecentActivity')}</div>
+                <div className="section-title" style={{ marginBottom: '1rem' }}>{t('wpRecentActivity')}</div>
                 <div className="wp-tx-list">
                   {recentActivity.map((tx, i) => (
                     <div key={tx.id} className="wp-tx-item">
@@ -1073,19 +1024,19 @@ export default function WeddingPlanner({ session, onHome }) {
         </main>
       )}
 
-      {/* ── MODALS ── */}
+      {/* MODALS */}
       {showBudgetModal && (
         <GlobalBudgetModal uid={uid} currentBudget={settings?.total_budget || 0}
-          onClose={() => setShowBudgetModal(false)} onSaved={fetchAll} showToast={showToast} />
+          onClose={() => setShowBudgetModal(false)} onSaved={invalidateWedding} showToast={showToast} />
       )}
       {showSetup && (
         <SetupModal uid={uid} items={items}
-          onClose={() => setShowSetup(false)} onSaved={fetchAll} showToast={showToast} />
+          onClose={() => setShowSetup(false)} onSaved={invalidateWedding} showToast={showToast} />
       )}
       {showAddTx && (
         <AddTxModal tx={editTx} uid={uid} items={itemsWithStats} defaultItemId={txItemId}
           onClose={() => { setShowAddTx(false); setEditTx(null); setTxItemId(null) }}
-          onSaved={fetchAll} showToast={showToast} />
+          onSaved={invalidateWedding} showToast={showToast} />
       )}
       {showVendorPicker && pickerItem && (
         <VendorPickerModal
@@ -1097,6 +1048,6 @@ export default function WeddingPlanner({ session, onHome }) {
       {toast && (
         <Toast key={toast.key} message={toast.message} type={toast.type} onDone={() => setToast(null)} />
       )}
-    </div>
+    </>
   )
 }

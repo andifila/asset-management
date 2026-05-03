@@ -135,7 +135,7 @@ function generateSvcInsights(overdueComps, dueComps, lastServiceRec, totalBiaya,
   return out.slice(0, 3)
 }
 
-export default function VehicleService({ session, onHome }) {
+export default function VehicleService({ session }) {
   const [vehicles,  setVehicles]  = useState([])
   const [selectedId, setSelectedId] = useState(null)
   const [records,   setRecords]   = useState([])
@@ -153,9 +153,7 @@ export default function VehicleService({ session, onHome }) {
   const toastKey = useRef(0)
 
   const uid    = session.user.id
-  const { lang, t, toggle: toggleLang } = useLang()
-  const avatar = session.user.user_metadata?.avatar_url
-  const uname  = session.user.user_metadata?.full_name || session.user.email
+  const { t } = useLang()
 
   const showToast = useCallback((msg, type = 'success') => {
     toastKey.current += 1
@@ -180,7 +178,6 @@ export default function VehicleService({ session, onHome }) {
     let vs = vRes.data || []
     const rs = rRes.data || []
 
-    // Create default vehicle if none exists
     if (!vs.length) {
       const { data: newV } = await supabase
         .from('vehicles')
@@ -208,7 +205,6 @@ export default function VehicleService({ session, onHome }) {
   const vehicleRecords = records.filter(r => r.vehicle_id === selectedId)
   const kmNow = vehicle?.km_current || 0
 
-  // Urgency & summary
   const components    = vehicle ? getComponents(vehicle) : []
   const compStatuses  = components.map(comp => compStatus(comp, vehicleRecords, kmNow))
   const overdueComps  = components.filter((_, i) => compStatuses[i]?.lvl === 'overdue')
@@ -261,37 +257,21 @@ export default function VehicleService({ session, onHome }) {
   const typeInfo = VEHICLE_TYPES.find(t => t.value === vehicle?.type) || VEHICLE_TYPES[0]
 
   return (
-    <div className="app">
-      <header className="topbar">
-        <div className="topbar-brand" style={{ cursor: 'pointer' }} onClick={onHome}>
-          ⚙ <span>{t('svcTitle')}</span>
-        </div>
-        <div className="topbar-right">
-          {onHome && <button className="btn-home" onClick={onHome}>← Home</button>}
-          {avatar && <img src={avatar} className="avatar" alt="avatar" referrerPolicy="no-referrer" />}
-          <span className="topbar-name">{uname}</span>
-          <button className="btn-lang" onClick={toggleLang}>
-            <span className={lang === 'id' ? 'lang-active' : ''}>ID</span>
-            <span className="lang-sep">·</span>
-            <span className={lang === 'en' ? 'lang-active' : ''}>EN</span>
-          </button>
-        </div>
-      </header>
-
+    <>
       {loading ? <SvcSkeleton /> : (
         <main className="main-content">
           {/* Vehicle Selector */}
           <div className="svc-vehicle-selector">
             <div className="svc-vehicle-tabs">
               {vehicles.map(v => {
-                const t = VEHICLE_TYPES.find(x => x.value === v.type) || VEHICLE_TYPES[0]
+                const vt = VEHICLE_TYPES.find(x => x.value === v.type) || VEHICLE_TYPES[0]
                 return (
                   <button
                     key={v.id}
                     className={`svc-vehicle-tab${selectedId === v.id ? ' active' : ''}`}
                     onClick={() => setSelectedId(v.id)}
                   >
-                    <span>{t.icon}</span>
+                    <span>{vt.icon}</span>
                     <span>{v.name}</span>
                     {v.plate && <span className="svc-tab-plate">{v.plate}</span>}
                   </button>
@@ -299,7 +279,7 @@ export default function VehicleService({ session, onHome }) {
               })}
             </div>
             <button
-              className="btn-add"
+              className="btn-primary"
               onClick={() => { setEditVehicle(null); setShowVehicleModal(true) }}
             >
               {t('svcAddVehicle')}
@@ -317,7 +297,7 @@ export default function VehicleService({ session, onHome }) {
                     <div className="svc-vehicle-meta">
                       <span className="badge badge-amber">{vehicle.plate || '—'}</span>
                       {vehicle.year && <span className="svc-vehicle-year">{vehicle.year}</span>}
-                      <span className="badge badge-gray">{typeInfo.label}</span>
+                      <span className="badge">{typeInfo.label}</span>
                     </div>
                   </div>
                 </div>
@@ -389,11 +369,11 @@ export default function VehicleService({ session, onHome }) {
               {(() => {
                 const chips = generateSvcInsights(overdueComps, dueComps, lastServiceRec, totalBiaya, vehicleRecords)
                 return chips.length > 0 ? (
-                  <div className="mod-insight-strip">
+                  <div className="insight-strip">
                     {chips.map((c, i) => (
-                      <div key={i} className={`mod-insight-chip mod-chip-${c.type}`}>
-                        <span className="mod-chip-icon">{c.icon}</span>
-                        <span className="mod-chip-text">{c.text}</span>
+                      <div key={i} className={`insight-chip chip-${c.type}`}>
+                        <span className="chip-icon">{c.icon}</span>
+                        <span className="chip-text">{c.text}</span>
                       </div>
                     ))}
                   </div>
@@ -401,25 +381,25 @@ export default function VehicleService({ session, onHome }) {
               })()}
 
               {/* Summary Stat Cards */}
-              <div className="svc-summary-row">
-                <div className="mod-stat-card">
-                  <div className="mod-stat-label">{t('svcTotalRecords')}</div>
-                  <div className="mod-stat-val">{vehicleRecords.length}</div>
-                  <div className="mod-stat-sub">{t('svcHistorySub')}</div>
+              <div className="stat-grid">
+                <div className="stat-card">
+                  <div className="stat-card-label">{t('svcTotalRecords')}</div>
+                  <div className="stat-card-value">{vehicleRecords.length}</div>
+                  <div className="stat-card-sub">{t('svcHistorySub')}</div>
                 </div>
-                <div className="mod-stat-card">
-                  <div className="mod-stat-label">{t('svcTotalCost')}</div>
-                  <div className="mod-stat-val" style={{ fontSize: vehicleRecords.length ? '1rem' : '1.25rem', color: 'var(--amber)' }}>
+                <div className="stat-card">
+                  <div className="stat-card-label">{t('svcTotalCost')}</div>
+                  <div className="stat-card-value" style={{ fontSize: vehicleRecords.length ? '1rem' : '1.25rem', color: 'var(--amber)' }}>
                     {totalBiaya ? 'Rp ' + totalBiaya.toLocaleString('id-ID') : '—'}
                   </div>
-                  <div className="mod-stat-sub">{t('svcAllService')}</div>
+                  <div className="stat-card-sub">{t('svcAllService')}</div>
                 </div>
-                <div className="mod-stat-card">
-                  <div className="mod-stat-label">{t('svcLastService')}</div>
-                  <div className="mod-stat-val" style={{ fontSize: '0.92rem', color: 'var(--blue)' }}>
+                <div className="stat-card">
+                  <div className="stat-card-label">{t('svcLastService')}</div>
+                  <div className="stat-card-value" style={{ fontSize: '0.92rem', color: 'var(--blue)' }}>
                     {lastServiceRec ? fmtDate(lastServiceRec.service_date) : '—'}
                   </div>
-                  <div className="mod-stat-sub">
+                  <div className="stat-card-sub">
                     {lastServiceRec ? fmtKm(lastServiceRec.km_at_service) : t('svcNoDataSub')}
                   </div>
                 </div>
@@ -471,7 +451,7 @@ export default function VehicleService({ session, onHome }) {
               </div>
 
               {/* Service History */}
-              <div className="section-header">
+              <div className="action-bar">
                 <div className="section-title">{t('svcSectionHistory')}</div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <input
@@ -481,7 +461,7 @@ export default function VehicleService({ session, onHome }) {
                     onChange={e => { setSvcSearch(e.target.value); setSvcPage(1) }}
                     style={{ fontSize: '0.75rem', padding: '0.28rem 0.6rem', borderRadius: 6, border: '1px solid var(--border2)', background: 'var(--bg2)', color: 'var(--text)', width: 170, outline: 'none' }}
                   />
-                  <button className="btn-add" onClick={() => { setEditRec(null); setShowAdd(true) }}>{t('svcAddRecord')}</button>
+                  <button className="btn-primary" onClick={() => { setEditRec(null); setShowAdd(true) }}>{t('svcAddRecord')}</button>
                 </div>
               </div>
 
@@ -597,7 +577,7 @@ export default function VehicleService({ session, onHome }) {
       })()}
 
       {toast && <Toast key={toast.key} message={toast.message} type={toast.type} onDone={() => setToast(null)} />}
-    </div>
+    </>
   )
 }
 
@@ -825,8 +805,8 @@ function VehicleModal({ vehicle, uid, onClose, onSaved, showToast }) {
           {err && <div className="modal-error">{err}</div>}
         </div>
         <div className="modal-footer">
-          <button className="btn-cancel" onClick={onClose}>{t('cancel')}</button>
-          <button className="btn-save" onClick={save} disabled={saving}>{saving ? t('saving') : t('save')}</button>
+          <button className="btn-secondary" onClick={onClose}>{t('cancel')}</button>
+          <button className="btn-primary" onClick={save} disabled={saving}>{saving ? t('saving') : t('save')}</button>
         </div>
       </div>
     </div>
@@ -917,7 +897,7 @@ function ServiceModal({ record, vehicle, uid, onClose, onSaved, showToast }) {
           <div className="svc-items-section">
             <div className="svc-items-header">
               <span className="svc-items-title">{t('svcLabelItems')}</span>
-              <button type="button" className="btn-add" style={{ padding: '0.18rem 0.55rem', fontSize: '0.72rem' }} onClick={() => addItem()}>{t('svcAddItem')}</button>
+              <button type="button" className="btn-secondary" style={{ padding: '0.18rem 0.55rem', fontSize: '0.72rem' }} onClick={() => addItem()}>{t('svcAddItem')}</button>
             </div>
             <div className="svc-quick-types" style={{ marginBottom: '0.55rem' }}>
               {DEFAULT_COMPONENTS.map(c => (
@@ -961,8 +941,8 @@ function ServiceModal({ record, vehicle, uid, onClose, onSaved, showToast }) {
           {err && <div className="modal-error">{err}</div>}
         </div>
         <div className="modal-footer">
-          <button className="btn-cancel" onClick={onClose}>{t('cancel')}</button>
-          <button className="btn-save" onClick={save} disabled={saving}>
+          <button className="btn-secondary" onClick={onClose}>{t('cancel')}</button>
+          <button className="btn-primary" onClick={save} disabled={saving}>
             {saving ? t('saving') : t('save')}
           </button>
         </div>
