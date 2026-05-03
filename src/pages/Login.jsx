@@ -9,10 +9,12 @@ export default function Login() {
   const loginGoogle = async () => {
     setLoading(true)
     setError('')
+    const redirectTo = `${window.location.origin}${import.meta.env.BASE_URL}`
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin + import.meta.env.BASE_URL,
+        redirectTo,
+        queryParams: { prompt: 'select_account' },
       },
     })
     if (error) { setError(error.message); setLoading(false) }
