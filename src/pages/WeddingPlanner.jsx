@@ -1,5 +1,5 @@
 // src/pages/WeddingPlanner.jsx
-import { useState, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { fmt } from '../lib/format'
 import Toast from '../components/Toast'
