@@ -75,8 +75,16 @@ function AppShell({ session }) {
 
 export default function App() {
   const [session, setSession] = useState(undefined)
+  const [oauthError, setOauthError] = useState(() => {
+    const p = new URLSearchParams(window.location.search)
+    return p.get('error_description') || p.get('error') || null
+  })
 
   useEffect(() => {
+    if (oauthError) {
+      window.history.replaceState({}, '', window.location.pathname)
+      return
+    }
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       if (s && !isAllowed(s)) { supabase.auth.signOut(); return }
       setSession(s)
@@ -86,7 +94,20 @@ export default function App() {
       setSession(s)
     })
     return () => subscription.unsubscribe()
-  }, [])
+  }, [oauthError])
+
+  if (oauthError) return (
+    <div className="login-bg">
+      <div className="login-card">
+        <div style={{ fontSize: '2rem', color: 'var(--amber)', marginBottom: '0.75rem' }}>⚠</div>
+        <h1 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.5rem' }}>Login Gagal</h1>
+        <p style={{ fontSize: '0.8rem', color: 'var(--muted)', marginBottom: '1.5rem', lineHeight: 1.6 }}>
+          {decodeURIComponent(oauthError).replace(/\+/g, ' ')}
+        </p>
+        <button className="btn-google" onClick={() => setOauthError(null)}>Coba Lagi</button>
+      </div>
+    </div>
+  )
 
   if (session === undefined) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}>
